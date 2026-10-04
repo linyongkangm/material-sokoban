@@ -1,0 +1,16 @@
+{
+  "characters": [
+    {"name":"ada","primary":"#5CACB5","palette":["#5CACB5","#7CC3CB","#3B2A20","#E8B48C","#C58A62","#191922"]},
+    {"name":"brigitte","primary":"#68497F","palette":["#68497F","#8A6AA3","#C6C6C6","#E4E4E8","#9A9AA0","#EFC9AE","#C99B7C","#191922"]},
+    {"name":"cameron","primary":"#E0A93F","palette":["#E0A93F","#F1CB72","#241C18","#C98E62","#A56E48","#191922"]},
+    {"name":"darlene","primary":"#B1E2DE","palette":["#B1E2DE","#D2F0ED","#8E4A2A","#F0C8A0","#D2A176","#191922"]},
+    {"name":"edison","primary":"#A3ABD2","palette":["#A3ABD2","#C3C9E4","#6F7E7B","#D9A07A","#B87E58","#191922"]},
+    {"name":"vinita","primary":"#A55142","palette":["#A55142","#C8786A","#D8B45C","#E8B48C","#C58A62","#191922"]},
+    {"name":"felix","primary":"#C8E0E6","palette":["#C8E0E6","#E0ECF0","#B85C38","#E8B48C","#C58A62","#191922"]},
+    {"name":"gwen","primary":"#E0685A","palette":["#E0685A","#F0917F","#3A2A22","#C98E62","#A56E48","#191922"]},
+    {"name":"hassan","primary":"#4E8FA0","palette":["#4E8FA0","#6FB2C2","#2F2A3A","#A56E48","#84552F","#191922"]},
+    {"name":"ingrid","primary":"#C0A0D8","palette":["#C0A0D8","#DCBFEF","#6B4A3A","#F0C8A0","#D2A176","#191922"]},
+    {"name":"jorge","primary":"#D08B45","palette":["#D08B45","#E8B070","#4A4038","#D9A07A","#B87E58","#191922"]},
+    {"name":"kim","primary":"#2E3D75","palette":["#2E3D75","#4E5D95","#A67C52","#EFC9AE","#C99B7C","#191922"]}
+  ]
+}
