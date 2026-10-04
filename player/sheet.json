@@ -150,6 +150,12 @@
   "image": "sheet.png",
   "format": "RGBA8888",
   "size": { "w": 2063, "h": 128 },
-  "scale": "1"
+  "scale": "1",
+  "frameTags": [
+   { "name": "walk_down", "from": 0, "to": 3, "direction": "forward", "color": "#000000ff" },
+   { "name": "walk_left", "from": 4, "to": 7, "direction": "forward", "color": "#000000ff" },
+   { "name": "walk_right", "from": 8, "to": 11, "direction": "forward", "color": "#000000ff" },
+   { "name": "walk_up", "from": 12, "to": 15, "direction": "forward", "color": "#000000ff" }
+  ]
  }
 }
