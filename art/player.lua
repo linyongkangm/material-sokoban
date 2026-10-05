@@ -123,8 +123,12 @@ function Canvas:blit(img)
 end
 
 -- ---- hair silhouette --------------------------------------------------
+-- Half-height 8.0 centred on y=10, so the oval spans rows 3..17 and the 2px
+-- ink ring still fits when the whole body bobs up a row on the passing frames.
+-- The old 10/9 oval peaked at y=-1 and every frame had a flat-cut crown sitting
+-- on the top edge of the cell.
 local function hair_hw(y)
-  local t = (9 - y) / 10
+  local t = (10 - y) / 8
   if math.abs(t) >= 1 then return -1 end
   return 8.5 * math.sqrt(1 - t * t)
 end
@@ -134,6 +138,13 @@ end
 -- sweeps across her brow.
 local function hairline(x)
   return math.min(10, 6 + 0.55 * math.abs(x - 18))
+end
+
+-- In profile the hair has to cover the whole back of the skull and only open a
+-- window over the face. Reusing the front-view hairline left the crown and the
+-- back bare, which is what read as bald.
+local function hairline_side(x)
+  return math.max(6, math.min(15, 6 + 1.1 * (x - 12)))
 end
 
 -- A lock that leans off the head and tapers to a point. Blunt rectangles hang;
@@ -187,6 +198,8 @@ local function figure(c, dir, phase)
   -- The hair and the scarf end lag behind the step. That lag is most of what
   -- reads as energy at 32px: the body barely moves, the loose parts swing.
   local lag = (phase == 1) and -1 or (phase == 3) and 1 or 0
+  -- the leading hand's vertical offset, so the magnifier rides with the arm
+  local armY = 0
 
   -- legs: the cropped coat leaves three rows of leg instead of two, and the
   -- stride is a pixel wider. Legs are where a walk cycle lives.
@@ -206,24 +219,40 @@ local function figure(c, dir, phase)
     c:box(16 + a, ly + l2h, 3, 3, BOOT)
   end
 
-  -- trench, cropped to the hip: body, lit shoulder band, V lapels, belt,
+  -- trench, cropped to the hip: body, lit shoulder band, lapels, belt,
   -- sleeves, hands. In profile the visible arm belongs at the FRONT edge -
   -- centred on the torso it crossed the belt and read as a plus sign.
-  local tx, tw = side and 11 or 9, side and 10 or 14
+  local tx, tw = side and 11 or 9, side and 11 or 14
   c:box(tx, 18 + bobY, tw, 9, COAT)
   c:box(tx, 18 + bobY, tw, 2, COATL)
   if not side then
-    for i = 0, 3 do
-      c:put(15 - i, 19 + bobY + i, COATD)
-      c:put(16 + i, 19 + bobY + i, COATD)
+    if back then
+      -- from behind a trench shows the yoke across the shoulders and the vent
+      -- down the centre. The front lapels leaking onto this view was the same
+      -- bug the Lumine cycle had.
+      c:box(10, 20 + bobY, 12, 1, COATD)
+      c:box(15, 21 + bobY, 2, 7, COATD)
+    else
+      for i = 0, 3 do
+        c:put(15 - i, 19 + bobY + i, COATD)
+        c:put(16 + i, 19 + bobY + i, COATD)
+      end
     end
-    c:box(7, 19 + bobY, 2, 7, COATD)
-    c:box(23, 19 + bobY, 2, 7, COATD)
-    c:box(7, 26 + bobY, 2, 2, SKIN)
-    c:box(23, 26 + bobY, 2, 2, SKIN)
+    -- arms counter-swing: without this the two contact frames differ only by
+    -- the leg lift, and the walk reads as sliding
+    local las = ({ [0] = -1, [1] = 0, [2] = 1, [3] = 0 })[phase]
+    armY = las
+    c:box(7, 19 + bobY + las, 2, 7, COATD)
+    c:box(23, 19 + bobY - las, 2, 7, COATD)
+    c:box(7, 26 + bobY + las, 2, 2, SKIN)
+    c:box(23, 26 + bobY - las, 2, 2, SKIN)
   else
     c:box(11, 19 + bobY, 2, 7, COATD)
     c:box(11, 26 + bobY, 2, 2, SKIN)
+    -- the hem at her back lifts a pixel on the passing frames, so the coat has
+    -- weight instead of being a box bolted to the waist
+    c:box(20 + lag, 24 + bobY, 3, 3, COAT)
+    c:box(20 + lag, 26 + bobY, 3, 1, COATD)
   end
   c:box(tx, 23 + bobY, tw, 2, COATD)              -- belt
 
@@ -233,10 +262,12 @@ local function figure(c, dir, phase)
     if w >= 0 and math.abs(x - 16) <= w then c:put(x, y, HAIR) end
   end end
   if not back then
-    local fx = side and (dir == 'left' and -1.5 or 1.5) or 0
-    c:disc(16 + fx, 10 + bobY, 6, 7, SKIN)
+    -- The face sits forward in profile, and the profile hairline runs down to
+    -- the nape behind it; otherwise the crown and the back of the head are bare.
+    local fx = side and (dir == 'left' and -2.5 or 2.5) or 0
+    c:disc(16 + fx, 10 + bobY, side and 5 or 6, side and 6 or 6.5, SKIN)
     for x = 8, 24 do
-      local hl = math.floor(hairline(x - fx)) + bobY
+      local hl = math.floor((side and hairline_side or hairline)(x - fx)) + bobY
       for y = 0, hl do
         local w = hair_hw(y - bobY)
         if w >= 0 and math.abs(x - 16) <= w then c:put(x, y, HAIR) end
@@ -278,9 +309,11 @@ local function figure(c, dir, phase)
     if side then glasses_side(c, 10 + bobY) else glasses_front(c, 10 + bobY) end
   end
 
-  -- glass in the leading hand; sheathed when walking away
+  -- glass in the leading hand; sheathed when walking away. It rides with the
+  -- arm swing, otherwise the hand moves and the glass does not.
   if not back then
-    if side then magnifier(c, 6, 24 + bobY, -1) else magnifier(c, 24, 24 + bobY, 1) end
+    if side then magnifier(c, 6, 24 + bobY, -1)
+    else magnifier(c, 24, 24 + bobY - armY, 1) end
   end
 end
 
