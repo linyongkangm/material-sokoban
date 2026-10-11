@@ -10,7 +10,8 @@
 | --- | --- | --- |
 | `tools/` | 全部生成器与校验脚本（`.py` / `.lua`）、`roster_locked.sha256`、跨类总览 `overview.png` | 源码，唯一真相 |
 | `tiles/` | 着色集：4 块整格（floor / box / goal / player）+ 31 件墙（16 双面 + 15 单面），各带 `.aseprite` 与 `_1x.png`；`master.aseprite`（35 切片，1120×32）、`sokoban_sheet*.png`、`contact.png` / `scene.png` | 地块素材 |
-| `tiles/murdoku/` | 平涂集：同样 4 块整格 + 31 件墙，外加**没有生成器**的 `shelf`；`master.aseprite`、两张 sheet、`contact_murdoku.png` / `scene_murdoku.png` | 地块素材 |
+| `tiles/murdoku/` | 平涂集：同样 4 块整格 + 31 件墙，外加**没有生成器**的 `shelf`；`master.aseprite`、两张 sheet、`contact_murdoku.png` / `scene_murdoku.png`、户型图 `flatplan.png` 与家具总览 `furniture_contact.png` | 地块素材 |
+| `tiles/murdoku/furniture/` | 全套家具 / 门窗贴面 / 摆件，各带 `.aseprite` 与 `_1x.png`（件数以 `gen_furniture.py` 的 `PIECES` 为准），尺寸按真实家具（1 格 = 32px = 1 米） | 可编辑源，`tools/gen_furniture.py` 生成 |
 | `character/` | 12 人的交付 PNG（头像 / 徽章 / 色卡）、`pack.json`、名册条带、两张预览 | 交付层 |
 | `character/avatars/` | 12 颗头骨的 `.aseprite` 源 + `_1x.png`，其中 6 位已锁定 | 可编辑源 |
 | `character/tokens/` | 24 个 swatch / token 的 `.aseprite` 源 | 可编辑源 |
@@ -59,6 +60,32 @@ dofile `lumine.lua`，顺带把静态立绘重建一遍，所以两者不会失�
 属于**评审环节而不是作画环节**：`compose.py` 会把地块贴进一张真实 Sokoban 关卡，因为接缝和调色板
 不协调只有"真的平铺起来"才看得见。
 
+**家具不是 32×32，而且分两个尺寸级。** `tools/gen_furniture.py` 用同一个画法内核（占用表 + 手动膨胀
+墨线 + 平涂），但 `Piece` 的画布按真实家具体积给：双人床 64×64、单人床 32×64、沙发 96×32、地毯
+96×64、椅子 32×32。另一级是**摆件**（花瓶 / 果盘 / 书 / 靠垫 / 地垫），半格 16×16、墨线 1px，
+它们存在的意义就是"放在某个面上"。`ink()` 的膨胀**裁在自身框内**，所以一件家具永远不会把墨线伸进
+隔壁一格——这是它能平铺进户型图的前提。
+`tools/gen_flatplan.py` 再把它们摆成一张图：房间是矩形数组，**墙体由"跨房间的边"推导**（复用
+`compose.py` 的 `arms_at` / `piece_for`，所以转角、丁字、端头盖帽和 31 件墙资产完全一致），
+门就是**缺席的墙段**，窗是盖在墙带上的玻璃贴面。1 格 = 1 米，`SCALE = 4`。
+
+**叠放次序是模型，不是画图的先后。** `LAYER` 一个字典说清每件东西站在什么上面：
+`-2` 地面铺贴（地毯、地垫）→ `0` 家具 → `1` 摆件 → **墙** → 窗和门扇 → 标注。
+墙画在家具**之上**是有意的：平面图里砌体是固定物、家具只是顶着它摆，所以伸到线上那部分必须被墙裁掉；
+反过来画会让每张床、每个衣柜在自己那面墙上打一个洞，一整圈外框读成"断成几截的墙加中间的家具"。
+摆件锚点允许小数（半格的东西要落在桌面正中），锚点就是它占地的左上角。
+**房间之间的连接分两种**：`DOOR_SEGS` 有门有门扇，`OPEN_SEGS` 只是墙断了、不装门（垭口）。
+判定标准是"这两个房间是不是同一个空间"——过道和客厅是同一片活动区，中间装一扇要开的门就不成立
+（"过道进门进客厅，没有这样布局的"），所以那里是两格宽的开口；卧室、卫生间、厨房各自要关门，仍是门。
+`audit()` 两种都查通不堵：开口查两侧格子，门再多查门扇扫到的那一格。
+`audit()` 是一支真正的门，六种错都打印 `LAYOUT:` 并以非零码退出，而不是等眼睛在成品图里发现：
+家具穿出墙、**同层**两件叠在一起（跨层叠是设计，花瓶和餐桌共用格子是对的）、摆件底下没有承托它的面、
+**门被家具挡住**（一个门洞要空三格：门洞两侧各一格，加上门扇沿墙扫到的那一格——门扇 24px、比半格还长。
+只查门扇那一侧，就会放过"主卧门开着，但沙发正好堵在客厅那一侧"这种情况）、
+标注压在家具上、标注跑到别的房间。footprint 一律从生成出来的资产反查，所以资产改小一改，图会报错而
+不会悄悄挤进去。`DOOR_SEGS` 就是这套户型的交通图，读一遍就知道"进门走到哪儿"通不通——第一版把它写成
+了进门只能穿过厨房才到得了客厅，第二版主卧门开在 (2,4) 那格、正对沙发背，都是这么读出来的。
+
 ## 3. 画风不变量
 
 - **墨线 `#191922`，2px，手动膨胀。** 依据自己维护的 `occ` 占用表，对空像素做 5×5 窗口
@@ -89,9 +116,12 @@ dofile `lumine.lua`，顺带把静态立绘重建一遍，所以两者不会失�
   那件就凹下去了。第一版只交付 7 件并写了"角件丁字件旋转 90° 即可"，`compose.py` 的 mock 一拼就露馅：
   同一圈外框里有的凸有的凹。现在 `gen_walls.BY_ARMS` 是"臂集合 → 唯一资产"的查表（16 正好是四臂的全部
   子集，任何节点都查得到，无兜底），没有任何转置步骤。
-  另外两条规则各被一次失败渲染教出来，都由 `gen_walls.flank_out()` 一处管住：**臂出口那一侧既不描墨线、
-  也不做侧帮明暗**，否则每 32px 出现一道亮暗竖纹，墙又读回"格子的边"（着色集是侧帮明暗纹，平涂集是
-  亮带缺口）。
+  另外两条规则各被一次失败渲染教出来。**臂出口那一侧既不描墨线、也不做侧帮明暗**
+  （`gen_walls.flank_out()`），否则每 32px 出现一道亮暗竖纹，墙又读回"格子的边"（着色集是侧帮明暗纹，
+  平涂集是亮带缺口）。**平涂集那条唯一亮带按带子的受光长边取**——横带第 13、14 行，竖带第 13、14 列，
+  中心块只按真正穿过它的臂来取。它原先是按"上边两像素是不是空的"找的：竖着的带子那里永远不空，
+  于是整条竖墙没有亮带，转角处横墙的亮线一头撞进一条平带里就断了，还是凸凹不一；而无条件两个方向都取，
+  又会在每条笔直竖墙的正中留一个 2×2 亮块，把格线读回来。
 - **墙分单面和双面，看对面那格有没有墙。** 关卡数据按**每格自报四条边**存（`compose.py` 里的
   `DECL` 就是这个模型）。两边都报同一条边 → **双面墙**，画一次跨线的 10px 整条（`wall_*` 那 16 件，
   按节点汇合的臂组合选件）；只有一边报 → **单面墙**，由那一格画 **5px 半条、贴在自己格子内侧**
@@ -188,13 +218,19 @@ Python 侧的路径常量已全部由 `__file__` 推导（`ROOT = dirname(dirnam
 
 ```
 cd E:/Material/material-sokoban
-"<venv python>" tools/gen_walls.py --lua            # 14 件边墙   -> tools/walls_gen.lua
+"<venv python>" tools/gen_walls.py --lua            # 31 件边墙   -> tools/walls_gen.lua
 "<venv python>" tools/gen_sheet.py --lua            # 两套 master -> tools/sheet_gen[_flat].lua
 "<venv python>" tools/gen_murdoku.py --lua floor,goal   # 指定的整格地块
+"<venv python>" tools/gen_furniture.py --lua        # 全套家具     -> tools/furniture_gen.lua
+"<venv python>" tools/gen_furniture.py --contact    # 家具总览 furniture_contact.png
 "<venv python>" tools/check_roster.py               # 名册改动后必跑
 "<venv python>" tools/compose.py                    # 着色集；加参数 murdoku 出平涂集
+"<venv python>" tools/gen_flatplan.py               # 户型图，纯 PIL 合成，不碰 Aseprite
 "<venv python>" tools/make_character_page.py        # 改完名册刷新 characters.html
 ```
+
+家具与户型这两行有先后：`--lua` 只写脚本，得先 `dofile` 出 `tiles/murdoku/furniture/*_1x.png`，
+`gen_flatplan.py` 才读得到贴图和它们的真实尺寸（尺寸是从资产反查的，不是写在表里的）。
 
 上面前三个 `--lua` 只写脚本，真正画图要在 MCP 里 `run_lua_script` 一次 `dofile` 掉它们，例如
 `pcall(dofile, 'E:/Material/material-sokoban/tools/walls_gen.lua')`；`master.aseprite` 的切片用
