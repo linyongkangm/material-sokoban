@@ -20,7 +20,19 @@ PAPER_BG = (242, 240, 247, 255)
 INK = (25, 25, 34, 255)
 MUTED = (120, 124, 140, 255)
 
-TILES = ["floor", "wall", "box", "goal", "player", "shelf"]
+TILES = ["floor", "box", "goal", "player", "shelf"]
+
+
+def _wall_pieces():
+    """The edge-wall set, read from its generator so this list cannot drift."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("gen_walls", os.path.join(TOOLS, "gen_walls.py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return list(m.PIECES)
+
+
+WALLS = _wall_pieces()
 ROSTER = [("ada", "Ada"), ("brigitte", "Brigitte"), ("cameron", "Cameron"),
           ("darlene", "Darlene"), ("edison", "Edison"), ("vinita", "Vinita")]
 
@@ -64,10 +76,10 @@ def main():
     parts.append(fit(Image.open(os.path.join(FLAT, "scene_murdoku.png")).convert("RGB").convert("RGBA"), W))
 
     parts.append(panel("C", "flat set at 4x - surfaces shown as they actually tile (2x2), objects alone", DARK_BG))
-    # floor and wall carry their ink grid on one edge only, so a single tile
-    # looks like it has a stray black border; 2x2 shows the real read
+    # the full-bleed surfaces keep their ink grid on one edge only, so a single
+    # tile looks like it has a stray black border; 2x2 shows the real read
     scale = 3
-    surfaces = [("floor", 2), ("wall", 2), ("goal", 2)]
+    surfaces = [("floor", 2), ("goal", 2)]
     objects = ["box", "player", "shelf"]
     cell = 32 * scale
     strip = Image.new("RGBA", (W, cell + 2 * 12), DARK_BG)
@@ -86,6 +98,19 @@ def main():
         strip.alpha_composite(im.resize((cell, cell), Image.NEAREST), (x, 12))
         x += cell + 16
     parts.append(strip)
+
+    parts.append(panel("C2", "the wall as a grid edge - 16 orientations, because a turned piece turns "
+                             "the top-left key light with it", DARK_BG))
+    cell = 32 * 3
+    cols = 8
+    rows = (len(WALLS) + cols - 1) // cols
+    wstrip = Image.new("RGBA", (W, rows * (cell + 12) + 12), DARK_BG)
+    for i, t in enumerate(WALLS):
+        r, c = divmod(i, cols)
+        im = Image.open(os.path.join(TILES_DIR, f"{t}_1x.png")).convert("RGBA")
+        wstrip.alpha_composite(im.resize((cell, cell), Image.NEAREST),
+                               (14 + c * (cell + 16), 12 + r * (cell + 12)))
+    parts.append(wstrip)
 
     parts.append(panel("D", "suspect roster at 2x - each skull is its own authored (y, half-width) profile", DARK_BG))
     cell = 128

@@ -1,57 +1,175 @@
-"""Assemble the 5 tiles into one 160x32 master sheet through the MCP tools.
+"""Assemble a whole tile set into one master sheet, per style.
+
+The cell tiles are floor / box / goal / player. The walls are grid-**edge**
+pieces, so they ride along as their own slices instead of filling a cell -- an
+engine reads one slice per name and places a wall instance on a grid line.
 
 draw_pixels_at takes sprite-global coordinates, so the sheet is just the same
 pixel lists shifted by 32px per column. The master .aseprite is the file to open
 in Aseprite; the exported PNG is what a game engine consumes.
+
+    python tools/gen_sheet.py --lua            # both styles -> sheet_gen.lua / sheet_gen_flat.lua
+    python tools/gen_sheet.py --calls shaded   # the MCP call-plan form
 """
 import importlib.util
 import json
 import os
+import sys
 
-spec = importlib.util.spec_from_file_location(
-    "gen_sokoban", os.path.join(os.path.dirname(os.path.abspath(__file__)), "gen_sokoban.py"))
-gs = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(gs)
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
 
-ORDER = ["floor", "wall", "box", "goal", "player"]
-MASTER = "tiles/master.aseprite"
+
+def _load(name):
+    spec = importlib.util.spec_from_file_location(name, os.path.join(HERE, name + ".py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+gs = _load("gen_sokoban")
+gm = _load("gen_murdoku")
+gw = _load("gen_walls")
+
+ORDER = ["floor", "box", "goal", "player"] + list(gw.PIECES)
 N = gs.N
+STYLES = {
+    "shaded": {"dir": "tiles", "layers": ("base", "shade"), "src": gs, "sheet": "sokoban_sheet"},
+    "flat": {"dir": "tiles/murdoku", "layers": ("flat", "ink"), "src": gm, "sheet": "murdoku_sheet"},
+}
 
 
-def build():
-    calls = [["create_canvas", {"width": N * len(ORDER), "height": N, "filename": MASTER}]]
-    calls.append(["add_layer", {"filename": MASTER, "layer_name": "base"}])
-    calls.append(["add_layer", {"filename": MASTER, "layer_name": "shade"}])
+def columns(style):
+    """(name, lower-layer pixels, upper-layer pixels) for every entry on the sheet."""
+    src = STYLES[style]["src"]
+    for name in ORDER:
+        if name in src.TILES:
+            if style == "shaded":
+                g = gs.TILES[name]()
+                b, s = gs.split(g)
+                bpx = b.pixels()
+                if name in gs.SILHOUETTE_OUTLINE:
+                    bpx = g.outline(gs.SILHOUETTE_OUTLINE[name]) + bpx
+                yield name, bpx, s.pixels()
+            else:
+                outline, body = gm.paint(name)
+                yield name, body + outline, []
+        elif style == "shaded":
+            body, detail, ink = gw.shaded(gw.PIECES[name])
+            yield name, body + ink, detail
+        else:
+            body, crest, ink = gw.flat(gw.PIECES[name])
+            yield name, body, crest + ink
+
+
+def _pixels(style):
+    """Shifted (base, shade) pixel triples for the whole strip."""
     base, shade = [], []
-    for i, name in enumerate(ORDER):
-        g = gs.TILES[name]()
+    for i, (name, bpx, spx) in enumerate(columns(style)):
         dx = i * N
-        b, s = gs.split(g)
-        bpx = b.pixels()
-        if name in gs.SILHOUETTE_OUTLINE:
-            bpx = g.outline(gs.SILHOUETTE_OUTLINE[name]) + bpx
-        for p in bpx:
-            base.append({"x": p["x"] + dx, "y": p["y"], "color": p["color"]})
-        for p in s.pixels():
-            shade.append({"x": p["x"] + dx, "y": p["y"], "color": p["color"]})
-        # a slice per tile so a game can address each one by name
-        calls.append(["create_slice", {"filename": MASTER, "name": name,
-                                       "x": dx, "y": 0, "width": N, "height": N}])
-    calls.append(["draw_pixels_at", {"filename": MASTER, "layer_name": "base",
-                                     "frame_index": 1, "pixels": base}])
-    calls.append(["draw_pixels_at", {"filename": MASTER, "layer_name": "shade",
-                                     "frame_index": 1, "pixels": shade}])
-    calls.append(["export_frame", {"filename": MASTER, "frame_index": 1,
-                                   "output_filename": "tiles/sokoban_sheet.png", "scale": 1}])
-    calls.append(["export_frame", {"filename": MASTER, "frame_index": 1,
-                                   "output_filename": "tiles/sokoban_sheet_4x.png", "scale": 4}])
-    calls.append(["get_color_stats", {"filename": MASTER, "frame_index": 1, "top": 40}])
-    calls.append(["list_slices", {"filename": MASTER}])
+        base += [(p["x"] + dx, p["y"], p["color"]) for p in bpx]
+        shade += [(p["x"] + dx, p["y"], p["color"]) for p in spx]
+    return base, shade
+
+
+def emit_lua(style):
+    """Write the batch-Lua builder: one dofile draws the sheet and its slices.
+
+    The MCP stdio client path needs one Aseprite launch per call and stalls on
+    this machine, so the sheet is drawn by one dofile'd script instead.
+    """
+    cfg = STYLES[style]
+    base, shade = _pixels(style)
+    w, h = N * len(ORDER), N
+
+    def tbl(px):
+        return ",\n  ".join('{%d,%d,"%s"}' % t for t in px)
+
+    slices = ",\n  ".join('{"%s", %d}' % (name, i * N) for i, (name, _, _) in enumerate(columns(style)))
+    lo, up = cfg["layers"]
+    src = f"""-- generated by tools/gen_sheet.py -- do not edit by hand.
+-- The engine-facing strip ({style}): one slice per tile, walls as edge pieces.
+local function col(h)
+  return Color(tonumber(string.sub(h, 2, 3), 16),
+               tonumber(string.sub(h, 4, 5), 16),
+               tonumber(string.sub(h, 6, 7), 16), 255)
+end
+local BASE = {{
+  {tbl(base)}
+}}
+local SHADE = {{
+  {tbl(shade) or "0"}
+}}
+local SLICES = {{
+  {slices}
+}}
+local spr = Sprite({w}, {h})
+spr.layers[1].name = '{lo}'
+local img = spr.cels[1].image
+for _, e in ipairs(BASE) do img:putPixel(e[1], e[2], col(e[3])) end
+if #SHADE > 1 then
+  local lyr = spr:newLayer()
+  lyr.name = '{up}'
+  local img2 = Image({w}, {h}, spr.colorMode)
+  for _, e in ipairs(SHADE) do img2:putPixel(e[1], e[2], col(e[3])) end
+  spr:newCel(lyr, spr.frames[1], img2, Point(0, 0))
+end
+-- one slice per tile so the engine can address each by name
+for _, e in ipairs(SLICES) do
+  local s = spr:newSlice(Rectangle(e[2], 0, {N}, {N}))
+  s.name = e[1]
+end
+local path = 'E:/Material/material-sokoban/{cfg["dir"]}/master.aseprite'
+pcall(os.remove, path)
+spr:saveAs(path)
+local ok = io.open(path, 'rb')
+if not ok then error('failed to write ' .. path) end
+ok:close()
+print('SHEET_OK style={style} w=' .. {w} .. ' slices=' .. #spr.slices)
+spr:close()
+"""
+    p = os.path.join(HERE, "sheet_gen.lua" if style == "shaded" else "sheet_gen_flat.lua")
+    with open(p, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(src)
+    return p, w
+
+
+def build_calls(style):
+    """The MCP call-plan form of the same sheet."""
+    cfg = STYLES[style]
+    master = f"{cfg['dir']}/master.aseprite"
+    lo, up = cfg["layers"]
+    base, shade = _pixels(style)
+    calls = [["create_canvas", {"width": N * len(ORDER), "height": N, "filename": master}]]
+    for layer in (lo, up):
+        calls.append(["add_layer", {"filename": master, "layer_name": layer}])
+    for i, (name, _, _) in enumerate(columns(style)):
+        calls.append(["create_slice", {"filename": master, "name": name,
+                                       "x": i * N, "y": 0, "width": N, "height": N}])
+    for layer, px in ((lo, base), (up, shade)):
+        calls.append(["draw_pixels_at", {"filename": master, "layer_name": layer,
+                                         "frame_index": 1,
+                                         "pixels": [dict(zip(("x", "y", "color"), p)) for p in px]}])
+    for scale, tag in ((1, ""), (4, "_4x")):
+        calls.append(["export_frame", {"filename": master, "frame_index": 1,
+                                       "output_filename": f"{cfg['dir']}/{cfg['sheet']}{tag}.png",
+                                       "scale": scale}])
+    calls.append(["get_color_stats", {"filename": master, "frame_index": 1, "top": 40}])
     return calls
 
 
 if __name__ == "__main__":
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "calls_sheet.json"),
-              "w", encoding="utf-8") as fh:
-        json.dump(build(), fh)
-    print("calls_sheet.json written")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    if "--lua" in sys.argv:
+        for s in args or list(STYLES):
+            p, w = emit_lua(s)
+            print(f"{os.path.basename(p)} written: {len(ORDER)} slices, {w}x{N}")
+        sys.exit(0)
+    if "--calls" in sys.argv:
+        s = (args or ["shaded"])[0]
+        out = os.path.join(HERE, "calls_sheet.json")
+        with open(out, "w", encoding="utf-8") as fh:
+            json.dump(build_calls(s), fh)
+        print(f"calls_sheet.json written for {s}: {len(ORDER)} slices ({N * len(ORDER)}x{N})")
+        sys.exit(0)
+    print(__doc__)

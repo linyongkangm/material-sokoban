@@ -3,31 +3,95 @@
 Visual feedback is the step that decides whether the art is actually good:
 contact.png shows every tile at 8x, scene.png tiles them into a real layout so
 seam and palette cohesion problems show up.
+
+The mock level is EDGE based, because that is what the wall now is: walls are
+not cells, they sit on the line between two cells. So the scene places wall
+pieces at grid *nodes*, offset half a cell from the cell grid, and resolves each
+node from the four wall segments that meet there. That render is the proof that
+the joints line up -- a doubled line at a join shows up immediately.
 """
 import os
 import sys
 
 from PIL import Image
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+
+
+def _load(name):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(name, os.path.join(HERE, name + ".py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+gw = _load("gen_walls")
+
 # compose.py [subdir] -- "murdoku" renders the flat-outline variant
 SUB = sys.argv[1] if len(sys.argv) > 1 else ""
 TILES_DIR = os.path.join(ROOT, "tiles", SUB) if SUB else os.path.join(ROOT, "tiles")
 SUFFIX = f"_{SUB}" if SUB else ""
 N = 32
-ORDER = ["floor", "wall", "box", "goal", "player"]
+ORDER = ["floor", "box", "goal", "player"] + list(gw.PIECES)
 
-MAP = [
-    "############",
-    "#.........o#",
-    "#..$$......#",
-    "#...##..o..#",
-    "#...##.....#",
-    "#..$....$..#",
-    "#....@.....#",
-    "#.o........#",
-    "############",
+# ---- the mock level ----------------------------------------------------
+# Cells hold only what stands *in* a cell. Walls are the lines between cells:
+# H[(x, y)] is the line above cell (x, y); V[(x, y)] is the line left of it.
+CELLS = [
+    "............",
+    "..o......o..",
+    "...$$.......",
+    "............",
+    "..@....$$...",
+    "............",
+    "...oo.......",
+    "............",
+    "............",
 ]
+COLS, ROWS = len(CELLS[0]), len(CELLS)
+COL = {"#": "wall", ".": "floor", "$": "box", "o": "goal", "@": "player"}
+
+H = {(x, 0) for x in range(COLS)} | {(x, ROWS) for x in range(COLS)}      # top/bottom frame
+V = {(0, y) for y in range(ROWS)} | {(COLS, y) for y in range(ROWS)}      # left/right frame
+H |= {(6, 4), (7, 4), (8, 4)}          # a free-standing run, both ends capped
+H |= {(2, 6), (3, 6)}                  # meets a vertical run -> tee
+V |= {(4, 2), (4, 3), (4, 4)}          # a vertical run, both ends capped
+V |= {(3, 6), (3, 7)}                  # joins H at node (3,6) -> tee
+V |= {(7, 3), (7, 4), (7, 5)}          # crosses the H run at node (7,4) -> cross
+V |= {(9, 6), (9, 7)}                  # a dead end against nothing
+
+
+def arms_at(x, y):
+    """Which of the four wall segments meet at grid node (x, y).
+
+    A horizontal segment runs east from the node it starts at, so it feeds the
+    E arm here and the W arm at its far end; a vertical segment runs south.
+    Getting this the other way round turns the outer frame into a row of
+    one-armed stubs, which is exactly what the first render showed.
+    """
+    a = set()
+    if (x, y) in H:
+        a.add("E")
+    if (x - 1, y) in H:
+        a.add("W")
+    if (x, y) in V:
+        a.add("S")
+    if (x, y - 1) in V:
+        a.add("N")
+    return a
+
+
+def piece_for(arms):
+    """The one asset carrying exactly these arms.
+
+    There used to be a second argument here -- a PIL transpose to apply -- and
+    seven base pieces to rotate. That was the bug: the key light is baked into
+    every asset, so a turned corner lights the wrong edge and reads as a groove.
+    All 16 orientations are delivered now, so the mock just looks one up.
+    """
+    return gw.BY_ARMS.get(frozenset(arms))
 
 
 def load(name, scale):
@@ -58,11 +122,10 @@ def contact():
     tiles = []
     for name in ORDER:
         im = load(name, 1)
-        rep = 2 if is_surface(im) else 1
-        if rep == 2:
-            patch = Image.new("RGBA", (N * rep, N * rep))
-            for ry in range(rep):
-                for rx in range(rep):
+        if is_surface(im):
+            patch = Image.new("RGBA", (N * 2, N * 2))
+            for ry in range(2):
+                for rx in range(2):
                     patch.alpha_composite(im, (rx * N, ry * N))
             im = patch
         tiles.append((name, im.resize((im.width * scale, im.height * scale), Image.NEAREST)))
@@ -81,24 +144,37 @@ def contact():
 
 def scene():
     scale = 6
-    cols, rows = len(MAP[0]), len(MAP)
-    out = Image.new("RGBA", (cols * N * scale, rows * N * scale), _bg())
+    # the cell field sits one cell inside the canvas so a wall centred on the
+    # outer boundary line is not cropped; a node at (x, y) therefore lands half
+    # a cell off the cell grid, which is the whole point of an edge wall
+    out = Image.new("RGBA", ((COLS + 2) * N * scale, (ROWS + 2) * N * scale), _bg())
     floor = load("floor", scale)
-    parts = {
-        "#": load("wall", scale),
-        ".": floor,
-        "$": [floor, load("box", scale)],
-        "o": [floor, load("goal", scale)],
-        "@": [floor, load("player", scale)],
-    }
-    for r, line in enumerate(MAP):
+    # cells first, so a wall drawn on a node always sits on top of the floor
+    for r, line in enumerate(CELLS):
         for c, ch in enumerate(line):
-            p = parts.get(ch, floor)
-            px, py = c * N * scale, r * N * scale
-            for layer in (p if isinstance(p, list) else [p]):
-                out.alpha_composite(layer, (px, py))
+            name = COL.get(ch, "floor")
+            px, py = (c + 1) * N * scale, (r + 1) * N * scale
+            out.alpha_composite(floor, (px, py))
+            if name != "floor":
+                out.alpha_composite(load(name, scale), (px, py))
+    # then the walls, half a cell off the cell grid
+    unresolved = []
+    for y in range(ROWS + 1):
+        for x in range(COLS + 1):
+            arms = arms_at(x, y)
+            if not arms:
+                continue
+            name = piece_for(arms)
+            if name is None:
+                unresolved.append((x, y, "".join(sorted(arms))))
+                continue
+            out.alpha_composite(load(name, scale),
+                                ((x * N + N // 2) * scale, (y * N + N // 2) * scale))
     out.save(os.path.join(TILES_DIR, f"scene{SUFFIX}.png"))
-    print(f"scene{SUFFIX}.png {out.width}x{out.height}")
+    print(f"scene{SUFFIX}.png {out.width}x{out.height} nodes="
+          f"{sum(1 for y in range(ROWS + 1) for x in range(COLS + 1) if arms_at(x, y))}")
+    if unresolved:
+        print(f"UNRESOLVED nodes (no piece carries these arms): {unresolved}")
 
 
 if __name__ == "__main__":

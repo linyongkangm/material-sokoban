@@ -141,46 +141,11 @@ def tile_floor():
 
 
 # ------------------------------------------------------------------- wall
-# Three courses of staggered stone bricks over a mortar bed. Each brick is
-# individually bevelled (light top/left, dark bottom/right) so the wall reads
-# as raised masonry rather than a flat panel.
-COURSES = (
-    (0, 9, (15,)),
-    (11, 20, (7, 23)),
-    (22, 31, (15,)),
-)
-
-
-def tile_wall():
-    g = Grid()
-    g.rect(0, 0, N - 1, N - 1, WALL_MORTAR)
-    for y0, y1, joints in COURSES:
-        spans = []
-        lo = 0
-        for j in joints:
-            spans.append((lo, j - 1))
-            lo = j + 1
-        spans.append((lo, N - 1))
-        for bx0, bx1 in spans:
-            if bx1 < bx0:
-                continue
-            g.rect(bx0, y0, bx1, y1, WALL_MID)
-            g.rect(bx0, y0, bx1, y0, WALL_HI)          # sunlit top edge
-            for y in range(y0, y1 + 1):                # lit left edge
-                g.set(bx0, y, WALL_LIGHT)
-            g.rect(bx0, y1, bx1, y1, WALL_DK)          # shadowed bottom edge
-            for y in range(y0, y1 + 1):                # dark right edge
-                g.set(bx1, y, WALL_OUT)
-    # speckle keeps the large stone faces from going flat
-    for y in range(N):
-        for x in range(N):
-            col = g.at(x, y)
-            if col == WALL_MID and (x * 13 + y * 7) % 29 == 0:
-                g.set(x, y, WALL_LIGHT)
-            elif col == WALL_MID and (x * 5 + y * 11) % 37 == 0:
-                g.set(x, y, WALL_DK)
-    return g
-
+# There is deliberately no wall here any more. The wall used to be a 32x32 cell
+# of three brick courses in a mortar frame; tiled up, every join stacked two
+# mortar lines and the wall read as a lattice of grid lines rather than as
+# masonry. It is now a grid *edge*, drawn as seven band pieces by
+# tools/gen_walls.py -- see that file for the geometry and the join rules.
 
 # -------------------------------------------------------------------- box
 def tile_box():
@@ -300,7 +265,6 @@ def tile_player():
 
 TILES = {
     "floor": tile_floor,
-    "wall": tile_wall,
     "box": tile_box,
     "goal": tile_goal,
     "player": tile_player,

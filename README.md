@@ -9,8 +9,8 @@
 | 路径 | 内容 | 性质 |
 | --- | --- | --- |
 | `tools/` | 全部生成器与校验脚本（`.py` / `.lua`）、`roster_locked.sha256`、跨类总览 `overview.png` | 源码，唯一真相 |
-| `tiles/` | 着色集：5 块 `.aseprite` + `_1x.png`、`master.aseprite`、`sokoban_sheet*.png`、`contact.png` / `scene.png` | 地块素材 |
-| `tiles/murdoku/` | 平涂集：6 块（含**没有生成器**的 `shelf`）+ `master.aseprite` + 两张 sheet + `contact_murdoku.png` / `scene_murdoku.png` | 地块素材 |
+| `tiles/` | 着色集：4 块整格（floor / box / goal / player）+ 16 件边墙（全部朝向各一件），各带 `.aseprite` 与 `_1x.png`；`master.aseprite`（20 切片）、`sokoban_sheet*.png`、`contact.png` / `scene.png` | 地块素材 |
+| `tiles/murdoku/` | 平涂集：同样 4 块整格 + 16 件边墙，外加**没有生成器**的 `shelf`；`master.aseprite`、两张 sheet、`contact_murdoku.png` / `scene_murdoku.png` | 地块素材 |
 | `character/` | 12 人的交付 PNG（头像 / 徽章 / 色卡）、`pack.json`、名册条带、两张预览 | 交付层 |
 | `character/avatars/` | 12 颗头骨的 `.aseprite` 源 + `_1x.png`，其中 6 位已锁定 | 可编辑源 |
 | `character/tokens/` | 24 个 swatch / token 的 `.aseprite` 源 | 可编辑源 |
@@ -29,7 +29,8 @@
 **地块走 Python。** `tools/gen_sokoban.py`、`tools/gen_murdoku.py` 里有一个 `Grid` 类（32×32 列表缓冲，
 `rect / border / round_rect / ring_px / outline` 几个画法，`None` 保持透明），画完之后转成
 `[{x, y, color}]` 像素清单，脚本把 MCP 调用序列写成 `calls.json`（`[[tool, args], ...]`），
-由 `tools/mcp_client.py` 在**一个 stdio 连接内**重放：
+由 `tools/mcp_client.py` 在**一个 stdio 连接内**重放（这条路径实测在这台机器上会卡住，现在只算备用，
+实际出图走第 7 节的 `--lua` + `dofile`）：
 
 ```
 create_canvas -> add_layer(base) -> add_layer(shade)
@@ -72,13 +73,25 @@ dofile `lumine.lua`，顺带把静态立绘重建一遍，所以两者不会失�
   | 地块 | 着色集填充色 | 平涂集填充色 |
   | --- | --- | --- |
   | floor | 4 | 3 |
-  | wall | 6 | 3 |
   | box | 4 | 3 |
   | goal | 7 | 5 |
   | player | 17 | 6 |
+  | 边墙 16 件（含墨线） | 6 | 3 |
 
   ≤8 色这条对地形成立；着色集的主角sprite 实测 17 色（帽子、脸、背带裤、靴子各自都要一档暗部）。
-  表里不含事后补上的墨线。上面 `player` 那行是本仓库现存最大的偏离，改地块时请按 ≤8 走，不要拿它当依据。
+  前三行不含事后补上的墨线，最后一行含（它是 `gen_walls.py` 自己打印的口径）。上面 `player` 那行是
+  本仓库现存最大的偏离，改地块时请按 ≤8 走，不要拿它当依据。
+- **墙是格子的边，不是一格。** 14px 墙带居中在格线（`y = 15.5` / `x = 15.5`）上，件名就是"从中心块
+  伸出哪些臂（N/E/S/W）"。**16 个朝向全部各自出一件，引擎不许旋转**：`wall_post`、`wall_h`、`wall_v`、
+  `wall_cross`、`wall_end_{n,e,s,w}`、`wall_corner_{nw,ne,se,sw}`、`wall_tee_{n,e,s,w}`（丁字按**缺**
+  哪一臂命名）。理由就是本仓库那条主光不变量——**旋转会把左上主光一起转走**，高光线跑到右边或下边，
+  那件就凹下去了。第一版只交付 7 件并写了"角件丁字件旋转 90° 即可"，`compose.py` 的 mock 一拼就露馅：
+  同一圈外框里有的凸有的凹。现在 `gen_walls.BY_ARMS` 是"臂集合 → 唯一资产"的查表，没有任何转置步骤。
+  另外两条规则各被一次失败渲染教出来，都由 `gen_walls.flank_out()` 一处管住：**臂出口那一侧既不描墨线、
+  也不做侧帮明暗**，否则每 32px 出现一道亮暗竖纹，墙又读回"格子的边"（着色集是侧帮明暗纹，平涂集是
+  亮带缺口）。
+- **平涂集地板自带的那圈 2px 黑网格已删除**：黑线现在只属于墙，"有黑线 = 这里有一道墙"是这套素材
+  唯一的边界语言，地板只留 `LILAC_SEAM` 板缝。着色集不受影响（它的地板本来就是倒角平板）。
 - **轮廓是一条逐行半宽函数 `y -> hw`**，而不是"椭圆 + 矩形"拼接——拼接处必然出现方头和太阳穴凸起。
   嫌疑人更进一步：每颗头骨是一张**作者写死的 `(y, 半宽)` 锚点表**，于是颅形是每个角色自己的决定；
   `smooth` 迭代次数同样属于身份（平滑两轮得圆顶，`smooth=0` 保留硬折角给方下颌角色）。第二批六个
@@ -130,7 +143,7 @@ dofile `lumine.lua`，顺带把静态立绘重建一遍，所以两者不会失�
 ## 6. 已知不可复现的资产
 
 `tiles/murdoku/shelf.aseprite`（含 `_1x.png` / `_8x.png`）没有任何生成器产出它——
-`gen_murdoku.py` 的 `TILES` 只有 floor / wall / box / goal / player，`shelf` 只在 `overview.py` 的
+`gen_murdoku.py` 的 `TILES` 只有 floor / box / goal / player，`shelf` 只在 `overview.py` 的
 展示清单里出现。它是当年用 MCP 绘图工具直接画出来的，所以：**重跑平涂集会不回去补这一格，
 `overview.py` 却会照样引用它**。要改货架只能继续手改那张 `.aseprite`。
 
@@ -152,12 +165,20 @@ Python 侧的路径常量已全部由 `__file__` 推导（`ROOT = dirname(dirnam
 
 ```
 cd E:/Material/material-sokoban
-"<venv python>" tools/gen_sokoban.py wall          # 只重画 wall，写 tools/calls.json
-"<venv python>" tools/mcp_client.py script tools/calls.json
-"<venv python>" tools/check_roster.py              # 名册改动后必跑
-"<venv python>" tools/compose.py                   # 着色集；加参数 murdoku 出平涂集
-"<venv python>" tools/make_character_page.py       # 改完名册刷新 characters.html
+"<venv python>" tools/gen_walls.py --lua            # 14 件边墙   -> tools/walls_gen.lua
+"<venv python>" tools/gen_sheet.py --lua            # 两套 master -> tools/sheet_gen[_flat].lua
+"<venv python>" tools/gen_murdoku.py --lua floor,goal   # 指定的整格地块
+"<venv python>" tools/check_roster.py               # 名册改动后必跑
+"<venv python>" tools/compose.py                    # 着色集；加参数 murdoku 出平涂集
+"<venv python>" tools/make_character_page.py        # 改完名册刷新 characters.html
 ```
+
+上面前三个 `--lua` 只写脚本，真正画图要在 MCP 里 `run_lua_script` 一次 `dofile` 掉它们，例如
+`pcall(dofile, 'E:/Material/material-sokoban/tools/walls_gen.lua')`；`master.aseprite` 的切片用
+batch Lua 的 `spr:newSlice(Rectangle(x, 0, 32, 32))` 建，切片 PNG 用 MCP 的 `export_frame` 导出。
+**不要再走 `mcp_client.py script calls.json` 那条路**：它按调用逐个启动 Aseprite，72 个调用的批次
+在这台机器上零输出、零产物地卡死过；`--calls` 形式仍留在 `gen_sheet.py` / `gen_murdoku.py` 里备用。
+`tools/*_gen*.lua` 是一次性产物，改完 Python 重跑 `--lua` 就会覆盖，不必手工编辑。
 
 角色与动画走 MCP：`run_lua_script` 里 `pcall(dofile, 'E:/Material/material-sokoban/tools/player.lua')`。
 目录重排之后跑过的是**校验与合成脚本**（`check_roster` / `compose` ×2 / `roster_preview` /
