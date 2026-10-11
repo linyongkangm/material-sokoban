@@ -214,14 +214,36 @@ def shaded(arms):
 
 
 def flat(arms):
-    """(fill, one crest band, ink) pixel lists for the flat pastel style."""
+    """(fill, one crest band, ink) pixel lists for the flat pastel style.
+
+    The crest is the band's **lit long side**: rows 13,14 of a run that goes east
+    or west, columns 13,14 of a run that goes north or south. It used to be found
+    by asking "is the pixel two rows above outside the mask", which is never true
+    down a vertical run -- the run continues there -- so every vertical wall
+    shipped without the one lighter band the horizontals have. A turn then read as
+    a lit ridge running straight into a flat rail and dead-ending, which is the
+    same convex/concave split this set exists to avoid.
+
+    The centre block belongs to whichever arms actually pass through it: taking
+    both tests unconditionally put a 2x2 spur at rows 13,14 in the middle of every
+    straight vertical run, i.e. the grid-line read back again.
+    """
     mask = mask_of(arms)
+    horiz = any(a in "EW" for a in arms)
+    vert = any(a in "NS" for a in arms)
+    lit_side = (BAND[0], BAND[0] + 1)
     body, crest, ink = [], [], []
     for x, y in sorted(mask):
-        if flank_out(mask, arms, x, y, (0, -2)):
-            crest.append(px(x, y, F_HI))
-        else:
-            body.append(px(x, y, F_FILL))
+        in_x, in_y = x in BAND, y in BAND
+        if in_x and in_y:                       # the node where the arms meet
+            take_y = horiz or not vert          # a post with no arms takes both
+            take_x = vert or not horiz
+            lit = (take_y and y in lit_side) or (take_x and x in lit_side)
+        elif in_x:                              # an N/S arm
+            lit = x in lit_side
+        else:                                   # an E/W arm
+            lit = y in lit_side
+        (crest if lit else body).append(px(x, y, F_HI if lit else F_FILL))
     for x, y in ink_of(arms, mask):
         ink.append(px(x, y, F_INK))
     return body, crest, ink

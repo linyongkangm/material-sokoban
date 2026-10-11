@@ -70,10 +70,19 @@ for c in range(COLS):                      # the frame: nothing on the far side,
 for r in range(ROWS):
     declare(0, r, "W")
     declare(COLS - 1, r, "E")
-for r in (2, 3, 4):                        # a doubled interior wall, both sides
+for r in (2, 3, 4):                        # doubled vertical run A
     declare(3, r, "E")
     declare(4, r, "W")
-declare(6, 5, "N")                         # a single-sided interior wall
+for c in (4, 5, 6):                        # doubled run B turning off A -> corner
+    declare(c, 5, "N")
+    declare(c, 4, "S")
+for r in (4, 5, 6):                        # doubled run C crossing B -> cross + tee
+    declare(4, r, "E")
+    declare(5, r, "W")
+for c in (3, 4):                           # doubled stub D meeting C
+    declare(c, 6, "N")
+    declare(c, 5, "S")
+declare(6, 5, "N")                         # single-sided interior walls
 declare(7, 5, "N")
 declare(2, 7, "E", "S")                    # one cell mixing both kinds
 declare(3, 7, "W")
@@ -95,7 +104,7 @@ H = {(c, r) for r in range(ROWS) for c in range(COLS) if is_double(c, r, "N")}
 V = {(c, r) for r in range(ROWS) for c in range(COLS) if is_double(c, r, "W")}
 
 
-def arms_at(x, y):
+def arms_at(x, y, hs=None, vs=None):
     """Which of the four doubled wall segments meet at grid node (x, y).
 
     A horizontal segment runs east from the node it starts at, so it feeds the
@@ -103,14 +112,16 @@ def arms_at(x, y):
     Getting this the other way round turns the outer frame into a row of
     one-armed stubs, which is exactly what the first render showed.
     """
+    hs = H if hs is None else hs
+    vs = V if vs is None else vs
     a = set()
-    if (x, y) in H:
+    if (x, y) in hs:
         a.add("E")
-    if (x - 1, y) in H:
+    if (x - 1, y) in hs:
         a.add("W")
-    if (x, y) in V:
+    if (x, y) in vs:
         a.add("S")
-    if (x, y - 1) in V:
+    if (x, y - 1) in vs:
         a.add("N")
     return a
 
@@ -239,6 +250,53 @@ def scene():
         print(f"UNRESOLVED nodes (no piece carries these arms): {unresolved}")
 
 
+def junctions():
+    """A proof sheet: every double-sided orientation assembled from real pieces.
+
+    Each patch puts one arm-set on a centre node and runs every arm one segment
+    outward, so the neighbour node has exactly one arm and resolves to an end
+    cap. That judges a corner against the pieces it actually meets in a level --
+    which is what a contact sheet cannot show, and what the shipped mock stopped
+    covering after the per-cell rewrite (it only ever placed straight bands).
+    """
+    scale = 4
+    names = list(gw.PIECES)
+    cols, span = 4, 3
+    hs, vs = set(), set()
+    for i, name in enumerate(names):
+        cx, cy = (i % cols) * span + 1, (i // cols) * span + 1
+        for a in gw.PIECES[name]:
+            if a == "E":
+                hs.add((cx, cy))
+            elif a == "W":
+                hs.add((cx - 1, cy))
+            elif a == "S":
+                vs.add((cx, cy))
+            else:
+                vs.add((cx, cy - 1))
+    gx = cols * span + 1
+    gy = ((len(names) + cols - 1) // cols) * span + 1
+    out = Image.new("RGBA", ((gx + 2) * N * scale, (gy + 2) * N * scale), _bg())
+    bad = []
+    placed = 0
+    for y in range(gy + 1):
+        for x in range(gx + 1):
+            arms = arms_at(x, y, hs, vs)
+            if not arms:
+                continue
+            placed += 1
+            got = piece_for(arms)
+            if got is None:
+                bad.append((x, y, "".join(sorted(arms))))
+                continue
+            out.alpha_composite(load(got, scale),
+                                ((x * N + N // 2) * scale, (y * N + N // 2) * scale))
+    out.save(os.path.join(TILES_DIR, f"junctions{SUFFIX}.png"))
+    print(f"junctions{SUFFIX}.png {out.width}x{out.height} nodes={placed}"
+          + (f" UNRESOLVED={bad}" if bad else " all orientations resolved"))
+
+
 if __name__ == "__main__":
     contact()
     scene()
+    junctions()
