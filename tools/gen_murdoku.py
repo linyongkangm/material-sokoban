@@ -17,13 +17,14 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
 spec = importlib.util.spec_from_file_location("gen_sokoban", os.path.join(HERE, "gen_sokoban.py"))
 gs = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gs)
 
 N = gs.N
 Grid = gs.Grid
-OUT = "murdoku"
+OUT = "tiles/murdoku"
 
 INK = "#191922"
 INK_SOFT = "#2F2E3D"
@@ -196,7 +197,7 @@ def build(only=None):
     for name, fn in TILES.items():
         if only and name not in only:
             continue
-        fname = f"{OUT}/tiles/{name}.aseprite"
+        fname = f"{OUT}/{name}.aseprite"
         outline, body = paint(name)
         calls.append(["create_canvas", {"width": N, "height": N, "filename": fname}])
         calls.append(["add_layer", {"filename": fname, "layer_name": "ink"}])
@@ -206,7 +207,7 @@ def build(only=None):
         calls.append(["draw_pixels_at", {"filename": fname, "layer_name": "flat",
                                          "frame_index": 1, "pixels": body}])
         calls.append(["export_frame", {"filename": fname, "frame_index": 1,
-                                       "output_filename": f"{OUT}/tiles/{name}_1x.png",
+                                       "output_filename": f"{OUT}/{name}_1x.png",
                                        "scale": 1}])
     return calls
 
@@ -239,7 +240,7 @@ def build_sheet():
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "tiles"
     only = None
-    os.makedirs(os.path.join(HERE, OUT, "tiles"), exist_ok=True)
+    os.makedirs(os.path.join(ROOT, OUT), exist_ok=True)
     if mode == "sheet":
         calls = build_sheet()
         out = os.path.join(HERE, "calls_murdoku_sheet.json")

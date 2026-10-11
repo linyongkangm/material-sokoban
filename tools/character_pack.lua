@@ -1,15 +1,15 @@
 -- Per-character deliverable pack: avatar, colour swatch, and a map token.
 -- Run via the MCP with:
---   dofile('D:/Materials/sokoban/art/character_pack.lua')
+--   dofile('E:/Material/material-sokoban/tools/character_pack.lua')
 --
 -- Palettes come from roster.lua's CHARS table, so the three products can never
--- disagree with the avatar. Editable .aseprite sources land in art/character/;
--- only the PNGs go into the delivery folder.
+-- disagree with the avatar. Editable .aseprite sources land in character/tokens/;
+-- only the PNGs go into the delivery folder root.
 
-dofile('D:/Materials/sokoban/art/roster.lua')
+dofile('E:/Material/material-sokoban/tools/roster.lua')
 
-local OUT = 'D:/Materials/sokoban/character/'
-local SRC = 'D:/Materials/sokoban/art/character/'
+local OUT = 'E:/Material/material-sokoban/character/'
+local SRC = 'E:/Material/material-sokoban/character/tokens/'
 local INK = ROSTER_INK
 local CHARS = ROSTER_CHARS
 

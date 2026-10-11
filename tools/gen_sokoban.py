@@ -18,7 +18,8 @@ import os
 import sys
 
 N = 32
-ART = os.path.dirname(os.path.abspath(__file__))
+TOOLS = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(TOOLS)
 
 # ---------------------------------------------------------------- palette
 FLOOR_BASE, FLOOR_HI, FLOOR_DK, FLOOR_EDGE = "#4A5262", "#636D80", "#3A414F", "#2A303B"
@@ -341,9 +342,9 @@ def build_calls(only=None):
 if __name__ == "__main__":
     only = set(sys.argv[1].split(",")) if len(sys.argv) > 1 and sys.argv[1] != "--all" else None
     calls = build_calls(only)
-    with open(os.path.join(ART, "calls.json"), "w", encoding="utf-8") as fh:
+    with open(os.path.join(TOOLS, "calls.json"), "w", encoding="utf-8") as fh:
         json.dump(calls, fh)
-    os.makedirs(os.path.join(ART, "tiles"), exist_ok=True)
+    os.makedirs(os.path.join(ROOT, "tiles"), exist_ok=True)
     names = [n for n in TILES if not only or n in only]
     print(f"calls={len(calls)} for {','.join(names)}")
     for name in names:

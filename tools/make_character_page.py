@@ -11,7 +11,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CHAR = os.path.join(ROOT, "character")
-ART = os.path.join(ROOT, "art")
+ART = os.path.join(ROOT, "tools")
 OUT = os.path.join(ROOT, "characters.html")
 
 
@@ -137,7 +137,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 <div class="wrap">
   <header>
     <h1>Suspects</h1>
-    <span class="sub">__COUNT__ 个角色 · 头像 / 指示物 / 色卡 · 由 <code>art/roster.lua</code> 生成</span>
+    <span class="sub">__COUNT__ 个角色 · 头像 / 指示物 / 色卡 · 由 <code>tools/roster.lua</code> 生成</span>
   </header>
 
   <div class="bar">
@@ -161,7 +161,7 @@ TEMPLATE = r"""<!DOCTYPE html>
 
   <footer>
     主色 = 衣服色，色卡首格与指示物外圈、卡片色条同源（<code>character/pack.json</code>）。
-    改完花名册跑 <code>python art/make_character_page.py</code> 重新生成本页。
+    改完花名册跑 <code>python tools/make_character_page.py</code> 重新生成本页。
   </footer>
 </div>
 

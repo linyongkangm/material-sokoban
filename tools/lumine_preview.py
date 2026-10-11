@@ -37,7 +37,7 @@ def check_fresh():
     src = os.path.join(OUT, "lumine.aseprite")
     png = os.path.join(OUT, "lumine.png")
     if not os.path.exists(src):
-        return ["lumine.aseprite is missing - run art/lumine.lua"]
+        return ["lumine.aseprite is missing - run tools/lumine.lua"]
     if not os.path.exists(png) or os.path.getmtime(png) < os.path.getmtime(src):
         return ["lumine.png is older than lumine.aseprite - re-export it"]
     return []

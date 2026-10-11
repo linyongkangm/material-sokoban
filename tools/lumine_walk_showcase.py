@@ -36,7 +36,7 @@ def font(px, bold=True):
 def check_fresh():
     src = os.path.join(OUT, "lumine_walk.aseprite")
     if not os.path.exists(src):
-        return ["lumine_walk.aseprite is missing - run art/lumine_walk.lua"]
+        return ["lumine_walk.aseprite is missing - run tools/lumine_walk.lua"]
     mtime = os.path.getmtime(src)
     derived = ["lumine_walk_sheet.png", "lumine_walk.json"] + [
         f"walk_{d}.gif" for d in DIRS]

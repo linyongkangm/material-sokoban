@@ -8,8 +8,9 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
-ART = os.path.dirname(os.path.abspath(__file__))
-AV = os.path.join(ART, "avatars")
+TOOLS = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(TOOLS)
+AV = os.path.join(ROOT, "character", "avatars")
 Roster = [
     ("ada", "Ada"), ("brigitte", "Brigitte"), ("cameron", "Cameron"),
     ("darlene", "Darlene"), ("edison", "Edison"), ("vinita", "Vinita"),
@@ -38,7 +39,7 @@ def primaries():
     this; the manifest is now the single source of truth. Falls back to the
     sample only if the pack has not been rendered yet.
     """
-    path = os.path.join(ART, os.pardir, "character", "pack.json")
+    path = os.path.join(ROOT, "character", "pack.json")
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
@@ -87,7 +88,7 @@ def main():
         out.alpha_composite(im, (x, grid_h + GAP))
         draw.text((x, grid_h + GAP + 66), name[:4], font=small, fill=INK)
 
-    dest = os.path.join(ART, "roster_preview.png")
+    dest = os.path.join(ROOT, "character", "roster_preview.png")
     out.save(dest)
     print(f"roster_preview.png {out.size[0]}x{out.size[1]}")
 

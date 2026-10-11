@@ -1,6 +1,6 @@
 -- Protagonist: a detective. 32x32, four-direction walk cycle, plus a 64x64 bust.
 -- Run via the MCP with:
---   local ok, err = pcall(dofile, 'D:/Materials/sokoban/art/player.lua')
+--   local ok, err = pcall(dofile, 'E:/Material/material-sokoban/tools/player.lua')
 --   print(ok and 'done' or err)
 --
 -- Read order of the design: saffron coat + belt + lapels say "detective", the
@@ -14,7 +14,7 @@
 -- Hair is its own oval, never the skull dilated (an even-width ring reads as a
 -- helmet). Flat fills, 2px ink silhouette, no ramps.
 
-local DIR = 'D:/Materials/sokoban/player/'
+local DIR = 'E:/Material/material-sokoban/player/'
 local INK   = '#191922'
 local SKIN  = '#F0BE96'
 local HAIR  = '#8A5138'   -- chestnut, two steps lighter than the old mud brown

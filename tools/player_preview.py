@@ -27,7 +27,7 @@ def check_fresh():
     """
     src = os.path.join(P, "player.aseprite")
     if not os.path.exists(src):
-        return ["player.aseprite is missing - run art/player.lua"]
+        return ["player.aseprite is missing - run tools/player.lua"]
     mtime = os.path.getmtime(src)
     stale = [f for f in DERIVED
              if not os.path.exists(os.path.join(P, f))

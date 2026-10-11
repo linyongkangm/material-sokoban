@@ -16,9 +16,10 @@ import sys
 
 from PIL import Image, ImageChops
 
-ART = os.path.dirname(os.path.abspath(__file__))
-AV = os.path.join(ART, "avatars")
-CHAR = os.path.join(ART, os.pardir, "character")
+TOOLS = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(TOOLS)
+AV = os.path.join(ROOT, "character", "avatars")
+CHAR = os.path.join(ROOT, "character")
 LOCKED = ["ada", "brigitte", "cameron", "darlene", "edison", "vinita"]
 # Hard gate: token rim (primary) vs core (hair). This is the pair that shipped
 # broken once, at 1.08:1.
@@ -53,7 +54,7 @@ def chars():
     non-greedy matching, and a parser that silently returns {} here would turn
     this gate into a no-op.
     """
-    src = open(os.path.join(ART, "roster.lua"), encoding="utf-8").read()
+    src = open(os.path.join(TOOLS, "roster.lua"), encoding="utf-8").read()
     starts = [(m.start(), m.group(1)) for m in re.finditer(r"n='(\w+)'", src)]
     out = {}
     for i, (pos, name) in enumerate(starts):
@@ -109,7 +110,7 @@ def main():
             fails.append(f"{n}: sheet cell differs from individual PNG")
     print("sheet vs individuals: checked", len(names))
 
-    fp = os.path.join(ART, "roster_locked.sha256")
+    fp = os.path.join(TOOLS, "roster_locked.sha256")
     if os.path.exists(fp):
         want = {}
         for line in open(fp):

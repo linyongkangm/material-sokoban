@@ -8,7 +8,11 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
-ART = os.path.dirname(os.path.abspath(__file__))
+TOOLS = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(TOOLS)
+TILES_DIR = os.path.join(ROOT, "tiles")
+FLAT = os.path.join(TILES_DIR, "murdoku")
+AVS = os.path.join(ROOT, "character", "avatars")
 W = 980
 PAD = 20
 DARK_BG = (18, 20, 26, 255)
@@ -54,10 +58,10 @@ def main():
     parts.append(head)
 
     parts.append(panel("A", "shaded 32x32 set, tiled into a mock level - bevelled stone, cool walls, warm crates", PAPER_BG))
-    parts.append(fit(Image.open(os.path.join(ART, "scene.png")).convert("RGB").convert("RGBA"), W))
+    parts.append(fit(Image.open(os.path.join(TILES_DIR, "scene.png")).convert("RGB").convert("RGBA"), W))
 
     parts.append(panel("B", "Murdoku-style flat set, same level - pastel fills, 2px ink, no ramps", PAPER_BG))
-    parts.append(fit(Image.open(os.path.join(ART, "scene_murdoku.png")).convert("RGB").convert("RGBA"), W))
+    parts.append(fit(Image.open(os.path.join(FLAT, "scene_murdoku.png")).convert("RGB").convert("RGBA"), W))
 
     parts.append(panel("C", "flat set at 4x - surfaces shown as they actually tile (2x2), objects alone", DARK_BG))
     # floor and wall carry their ink grid on one edge only, so a single tile
@@ -69,7 +73,7 @@ def main():
     strip = Image.new("RGBA", (W, cell + 2 * 12), DARK_BG)
     x = 14
     for t, rep in surfaces:
-        base = Image.open(os.path.join(ART, "murdoku", "tiles", f"{t}_1x.png")).convert("RGBA")
+        base = Image.open(os.path.join(FLAT, f"{t}_1x.png")).convert("RGBA")
         patch = Image.new("RGBA", (32 * rep, 32 * rep))
         for ry in range(rep):
             for rx in range(rep):
@@ -78,7 +82,7 @@ def main():
                                            Image.NEAREST), (x, 12))
         x += patch.width * scale + 16
     for t in objects:
-        im = Image.open(os.path.join(ART, "murdoku", "tiles", f"{t}_1x.png")).convert("RGBA")
+        im = Image.open(os.path.join(FLAT, f"{t}_1x.png")).convert("RGBA")
         strip.alpha_composite(im.resize((cell, cell), Image.NEAREST), (x, 12))
         x += cell + 16
     parts.append(strip)
@@ -90,7 +94,7 @@ def main():
     gap = (W - len(ROSTER) * cell) // (len(ROSTER) + 1)
     x = gap
     for slug, name in ROSTER:
-        im = Image.open(os.path.join(ART, "avatars", f"{slug}_1x.png")).convert("RGBA")
+        im = Image.open(os.path.join(AVS, f"{slug}_1x.png")).convert("RGBA")
         row.alpha_composite(im.resize((cell, cell), Image.NEAREST), (x, 0))
         bb = rd.textbbox((0, 0), name, font=font(14, False))
         rd.text((x + (cell - bb[2] + bb[0]) // 2, cell + 6), name, font=font(14, False),
@@ -99,7 +103,7 @@ def main():
     parts.append(row)
 
     parts.append(panel("E", "hero avatar at 1x (64px) and 4x - featureless bust, the shape carries the read", PAPER_BG))
-    av = Image.open(os.path.join(ART, "murdoku", "avatar_player_4x.png")).convert("RGBA")
+    av = Image.open(os.path.join(ROOT, "player", "avatar_player_4x.png")).convert("RGBA")
     duo = Image.new("RGBA", (W, av.height + 2 * PAD), PAPER_BG)
     duo.alpha_composite(av, (PAD, PAD))
     duo.alpha_composite(av.resize((64, 64), Image.LANCZOS), (PAD * 2 + av.width + 40, av.height - 64 + PAD))
@@ -112,7 +116,7 @@ def main():
     for p in parts:
         out.alpha_composite(p, (0, y))
         y += p.height + PAD
-    dest = os.path.join(ART, "overview.png")
+    dest = os.path.join(TOOLS, "overview.png")
     out.convert("RGB").save(dest)
     print(f"overview.png {out.size[0]}x{out.size[1]}")
 

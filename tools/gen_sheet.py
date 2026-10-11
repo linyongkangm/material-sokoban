@@ -14,7 +14,7 @@ gs = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gs)
 
 ORDER = ["floor", "wall", "box", "goal", "player"]
-MASTER = "master.aseprite"
+MASTER = "tiles/master.aseprite"
 N = gs.N
 
 
@@ -42,9 +42,9 @@ def build():
     calls.append(["draw_pixels_at", {"filename": MASTER, "layer_name": "shade",
                                      "frame_index": 1, "pixels": shade}])
     calls.append(["export_frame", {"filename": MASTER, "frame_index": 1,
-                                   "output_filename": "sokoban_sheet.png", "scale": 1}])
+                                   "output_filename": "tiles/sokoban_sheet.png", "scale": 1}])
     calls.append(["export_frame", {"filename": MASTER, "frame_index": 1,
-                                   "output_filename": "sokoban_sheet_4x.png", "scale": 4}])
+                                   "output_filename": "tiles/sokoban_sheet_4x.png", "scale": 4}])
     calls.append(["get_color_stats", {"filename": MASTER, "frame_index": 1, "top": 40}])
     calls.append(["list_slices", {"filename": MASTER}])
     return calls

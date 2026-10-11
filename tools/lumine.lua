@@ -1,6 +1,6 @@
 -- Lumine (荧) from Genshin Impact - full-body pixel portrait, 64x100.
 -- Run via the MCP with:
---   local ok, err = pcall(dofile, 'D:/Materials/sokoban/art/lumine.lua')
+--   local ok, err = pcall(dofile, 'E:/Material/material-sokoban/tools/lumine.lua')
 --   print(ok and 'done' or err)
 --
 -- Reference: Baidu Baike's entry describes her as "蓄着金色短发，发上稍高位置饰有
@@ -15,7 +15,10 @@
 -- she gets amber irises and a lash line. Everything else stays flat fills,
 -- 2px ink, no ramps.
 
-local DIR = 'D:/Materials/sokoban/lumine/'
+-- DEAD SCRIPT: the lumine/ output folder was deleted on 2026-10-11, so this
+-- writes to a directory that no longer exists. Recreate lumine/ before running,
+-- or delete this file and lumine_walk.lua with it.
+local DIR = 'E:/Material/material-sokoban/lumine/'
 local W, H = 64, 100
 local CX = 32
 local TOP = 4            -- air above the crown, so the ink outline is not cut

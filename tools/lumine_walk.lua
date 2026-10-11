@@ -1,13 +1,14 @@
 -- Lumine walk cycle: 4 directions x 4 frames, 64x100 each.
--- dofiles art/lumine.lua first, so the palette, the silhouette curves, her
+-- dofiles tools/lumine.lua first, so the palette, the silhouette curves, her
 -- face and the ink pass are literally the ones the still portrait uses. The
 -- still is rebuilt as a side effect, which is what keeps the two in sync.
 --
 -- Run via the MCP with:
---   local ok, err = pcall(dofile, 'D:/Materials/sokoban/art/lumine_walk.lua')
+--   local ok, err = pcall(dofile, 'E:/Material/material-sokoban/tools/lumine_walk.lua')
+-- DEAD SCRIPT: see lumine.lua -- the lumine/ output folder was deleted 2026-10-11.
 --   print(ok and 'done' or err)
 
-local ok0, err0 = pcall(dofile, 'D:/Materials/sokoban/art/lumine.lua')
+local ok0, err0 = pcall(dofile, 'E:/Material/material-sokoban/tools/lumine.lua')
 if not ok0 then error('lumine.lua failed: ' .. tostring(err0)) end
 local L = LUMINE
 

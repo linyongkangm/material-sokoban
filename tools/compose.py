@@ -9,10 +9,10 @@ import sys
 
 from PIL import Image
 
-ART = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # compose.py [subdir] -- "murdoku" renders the flat-outline variant
 SUB = sys.argv[1] if len(sys.argv) > 1 else ""
-TILES_DIR = os.path.join(ART, SUB, "tiles") if SUB else os.path.join(ART, "tiles")
+TILES_DIR = os.path.join(ROOT, "tiles", SUB) if SUB else os.path.join(ROOT, "tiles")
 SUFFIX = f"_{SUB}" if SUB else ""
 N = 32
 ORDER = ["floor", "wall", "box", "goal", "player"]
@@ -74,7 +74,7 @@ def contact():
     for _, t in tiles:
         sheet.alpha_composite(t, (x, gap + (tall - t.height) // 2))
         x += t.width + gap
-    sheet.save(os.path.join(ART, f"contact{SUFFIX}.png"))
+    sheet.save(os.path.join(TILES_DIR, f"contact{SUFFIX}.png"))
     marks = " ".join(n + ("[2x2]" if t.width == tall else "") for n, t in tiles)
     print(f"contact{SUFFIX}.png {sheet.width}x{sheet.height}  {marks}")
 
@@ -97,7 +97,7 @@ def scene():
             px, py = c * N * scale, r * N * scale
             for layer in (p if isinstance(p, list) else [p]):
                 out.alpha_composite(layer, (px, py))
-    out.save(os.path.join(ART, f"scene{SUFFIX}.png"))
+    out.save(os.path.join(TILES_DIR, f"scene{SUFFIX}.png"))
     print(f"scene{SUFFIX}.png {out.width}x{out.height}")
 
 

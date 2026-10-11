@@ -1,5 +1,5 @@
 -- Suspect roster generator, 64x64 each. Run from Aseprite batch Lua, or via
--- the MCP with:  dofile('D:/Materials/sokoban/art/roster.lua')
+-- the MCP with:  dofile('E:/Material/material-sokoban/tools/roster.lua')
 --
 -- Each skull is an AUTHORED profile: a list of (y, half-width) anchors, so the
 -- cranial outline is a per-character choice rather than one formula with
@@ -7,7 +7,7 @@
 -- anchors gives a round dome, leaving them raw keeps hard polygon corners for
 -- the square-jawed characters.
 
-local DIR = 'D:/Materials/sokoban/art/avatars/'
+local DIR = 'E:/Material/material-sokoban/character/avatars/'
 local INK = '#191922'
 
 local function col(h)

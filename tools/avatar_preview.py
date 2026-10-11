@@ -8,8 +8,8 @@ import sys
 
 from PIL import Image, ImageDraw
 
-ART = os.path.dirname(os.path.abspath(__file__))
-SRC = os.path.join(ART, "murdoku", "avatar_player_4x.png")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC = os.path.join(ROOT, "player", "avatar_player_4x.png")
 PAPER = (242, 240, 247, 255)
 INK = (25, 25, 34, 255)
 CARD = (248, 247, 251, 255)
@@ -37,7 +37,7 @@ def main() -> None:
     x = gap * 3 + pw * 2
     out.alpha_composite(av.resize((128, 128), Image.LANCZOS), (x, gap))
     out.alpha_composite(av.resize((64, 64), Image.LANCZOS), (x, gap + 128 + 8))
-    out.save(os.path.join(ART, "avatar_preview.png"))
+    out.save(os.path.join(ROOT, "player", "avatar_preview.png"))
     print(f"avatar_preview.png {out.size[0]}x{out.size[1]}")
 
 

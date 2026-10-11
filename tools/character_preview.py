@@ -49,9 +49,9 @@ def main():
         d.text((x + 8, y + 48), f"{sw.width // 8} colours", font=small, fill=MUTED)
         y += ROW_H
 
-    dest = os.path.join(ROOT, "art", "character_preview.png")
+    dest = os.path.join(CHAR, "character_preview.png")
     out.save(dest)
-    print(f"art/character_preview.png {out.size[0]}x{out.size[1]}")
+    print(f"character/character_preview.png {out.size[0]}x{out.size[1]}")
 
 
 if __name__ == "__main__":

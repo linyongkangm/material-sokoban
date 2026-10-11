@@ -13,8 +13,12 @@ import sys
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-PY = r"D:\Program Files\Aseprite\aseprite-mcp\.venv\Scripts\python.exe"
-ART = r"D:\Materials\sokoban\art"
+PY = r"H:\Program Files\Aseprite\aseprite-mcp\.venv\Scripts\python.exe"
+# Repo root, derived so the client does not pin one machine's drive letter.
+# cwd must be the root: the generators emit sprite-relative filenames like
+# "tiles/floor.aseprite" and "player/player.aseprite", and that is now where
+# each subject's assets live.
+ART = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _text(res):
@@ -28,7 +32,8 @@ def _text(res):
 
 
 async def run(mode: str, payload) -> None:
-    # cwd=ART so relative filenames from the MCP tools land in the art folder.
+    # cwd=ART (the repo root) so relative filenames from the MCP tools land in
+    # the subject folder each generator asks for: tiles/, player/, character/.
     params = StdioServerParameters(command=PY, args=["-m", "aseprite_mcp"], cwd=ART)
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
