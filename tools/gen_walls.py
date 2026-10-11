@@ -4,8 +4,9 @@ The old wall tile filled a whole 32x32 cell with three courses of brick and a
 mortar frame on all four sides. Tiled up, every join stacked two mortar lines,
 so a wall read as a lattice of dark grid lines -- the *edges* of the grid --
 rather than as solid masonry. This set moves the wall onto the line between two
-cells: a 14px band centred on y = 15.5 / x = 15.5, so one instance spans the
-join and butt-joined instances stay one band wide.
+cells: a 10px band centred on y = 15.5 / x = 15.5, so one instance spans the
+join and butt-joined instances stay one band wide. It reaches 5px into each
+neighbouring cell, which is exactly the margin the cell pieces leave empty.
 
 Pieces are named by the arms they carry out of the centre block, and **every
 orientation is its own asset** -- 16 per style:
@@ -47,7 +48,14 @@ gm = _load("gen_murdoku")
 
 N = gs.N
 Grid = gs.Grid
-BAND = range(9, 23)                 # 14 px centred on the grid line at 15.5
+# 6 px of stone face, and the 2px ink ring on each side brings the drawn band to
+# 10 px total -- which is the number that matters, because 10 px straddling the
+# line reaches 5 px into each neighbouring cell and the cell pieces leave
+# exactly 5 px of margin (the crate is drawn 22 px inside a 32 px cell). A 14 px
+# band ate 7 px of the crate beside it, and drawing the wall *under* the crate
+# only swapped that for a wall with a 52 px hole in it: two things that each
+# fill their region cannot share one boundary line.
+BAND = range(13, 19)
 PIECES = {                          # arms carried out of the centre block
     "wall_post": "",                # an isolated node / cap
     "wall_h": "EW",
@@ -69,6 +77,32 @@ PIECES = {                          # arms carried out of the centre block
 # what a map resolves to: the set of arms meeting at a node -> the one asset
 # that carries exactly them. No rotation, no mirroring, see the module docstring.
 BY_ARMS = {frozenset(arms): name for name, arms in PIECES.items()}
+
+# ---- single-sided walls ---------------------------------------------------
+# The pieces above are **double-sided**: both cells sharing the line have a wall
+# there, so the band straddles it and each cell loses 5px. When only one of the
+# two declares a wall, that cell draws a **half band** flush against the inside
+# of its own edge instead -- 5px deep, which is exactly the margin the cell
+# pieces already leave, so it never reaches into the crate.
+#
+# Cross-section, from the grid line inward: ink, lit face, face, shaded face,
+# ink. The outlines are 1px rather than the house 2px because a 5px strip cannot
+# carry 4px of ink and still show stone.
+HALF = 5
+ARMS_ORDER = "NESW"
+
+
+def half_name(arms):
+    return "halfwall_" + "".join(a.lower() for a in ARMS_ORDER if a in arms)
+
+
+HALF_PIECES = {}
+for _mask in range(1, 1 << 4):
+    _a = "".join(ARMS_ORDER[i] for i in range(4) if (_mask >> i) & 1)
+    HALF_PIECES[half_name(_a)] = _a
+BY_ARMS_HALF = {frozenset(a): n for n, a in HALF_PIECES.items()}
+ALL_PIECES = dict(PIECES)
+ALL_PIECES.update(HALF_PIECES)
 
 # shaded: one key light from the top-left, same convention as the rest of the set
 S_INK = gs.OUTL                     # #1B1F2A
@@ -193,21 +227,71 @@ def flat(arms):
     return body, crest, ink
 
 
+def half(arms, style="shaded"):
+    """(body, detail, ink) for a single-sided piece: 5px strips on this cell's
+    own edges.
+
+    Each pixel belongs to whichever strip it is *closest to in perpendicular
+    distance*, so two strips meeting at a corner miter along the diagonal and
+    both ink lines stay continuous. Painting the strips one after the other
+    overwrote the corner block with the later strip's cross-section instead,
+    which broke the earlier rail's bright line for 5px and made every corner of
+    the frame look disconnected.
+    """
+    if style == "shaded":
+        ph = (("ink", S_INK), ("detail", S_HI), ("body", S_MID),
+              ("detail", S_DK), ("ink", S_INK))
+        pv = (("ink", S_INK), ("detail", S_LIGHT), ("body", S_MID),
+              ("detail", S_DEEP), ("ink", S_INK))
+    else:
+        ph = pv = (("ink", F_INK), ("detail", F_HI), ("body", F_FILL),
+                   ("body", F_FILL), ("ink", F_INK))
+    # index 0 is the grid-line side of the strip, HALF-1 the edge facing inward
+    strips = []
+    if "N" in arms:
+        strips.append((lambda x, y: y, ph))
+    if "S" in arms:
+        strips.append((lambda x, y: N - 1 - y, ph))
+    if "W" in arms:
+        strips.append((lambda x, y: x, pv))
+    if "E" in arms:
+        strips.append((lambda x, y: N - 1 - x, pv))
+    out = {"body": [], "detail": [], "ink": []}
+    for y in range(N):
+        for x in range(N):
+            best = None
+            for idx_of, prof in strips:
+                i = idx_of(x, y)
+                if 0 <= i < HALF and (best is None or i < best[0]):
+                    best = (i, prof)
+            if best:
+                layer, col = best[1][best[0]]
+                out[layer].append(px(x, y, col))
+    return out["body"], out["detail"], out["ink"]
+
+
+def piece(name, style):
+    """Pixels of any wall piece, double- or single-sided."""
+    arms = ALL_PIECES[name]
+    if name in HALF_PIECES:
+        return half(arms, style)
+    return shaded(arms) if style == "shaded" else flat(arms)
+
+
 def build(style, pieces=None):
     """MCP call plans for the requested pieces in one style."""
     shaded_style = style == "shaded"
     out_dir = "tiles" if shaded_style else "tiles/murdoku"
     calls = []
-    for name, arms in PIECES.items():
+    for name in ALL_PIECES:
         if pieces and name not in pieces:
             continue
         fname = f"{out_dir}/{name}.aseprite"
+        body, detail, ink = piece(name, style)
         if shaded_style:
-            body, detail, ink = shaded(arms)
             layers = [("base", body + ink), ("shade", detail)]
         else:
-            body, crest, ink = flat(arms)
-            layers = [("flat", body), ("ink", crest + ink)]
+            layers = [("flat", body), ("ink", detail + ink)]
         calls.append(["create_canvas", {"width": N, "height": N, "filename": fname}])
         for layer, _ in layers:
             calls.append(["add_layer", {"filename": fname, "layer_name": layer}])
@@ -231,20 +315,21 @@ def emit_lua(styles):
     rows = []
     for s in styles:
         d = "tiles" if s == "shaded" else "tiles/murdoku"
-        for name, arms in PIECES.items():
+        lo, up = ("base", "shade") if s == "shaded" else ("flat", "ink")
+        for name in ALL_PIECES:
+            body, detail, ink = piece(name, s)
             if s == "shaded":
-                body, detail, ink = shaded(arms)
+                rows.append((d, name, lo, up, body + ink, detail))
             else:
-                body, detail, ink = flat(arms)
-            base = body + ink
-            rows.append((d, name, s == "shaded", base, detail))
+                rows.append((d, name, lo, up, body, detail + ink))
 
     def tbl(pixels):
         return ",\n    ".join('{%d,%d,"%s"}' % (p["x"], p["y"], p["color"]) for p in pixels)
 
     out = ["-- generated by tools/gen_walls.py -- do not edit by hand.",
-           "-- Wall as a grid edge: 14px band centred on the cell line, 2px ink,",
-           "-- ink omitted where an arm continues into the neighbouring cell.",
+           "-- Double-sided wall: 10px band (6px face + 2px ink each side) centred on",
+           "-- the cell line, ink omitted where an arm continues into the neighbour.",
+           "-- Single-sided wall: a 5px half band flush inside the owning cell's edge.",
            "local ROOT = 'E:/Material/material-sokoban/'",
            "local function col(h)",
            "  return Color(tonumber(string.sub(h, 2, 3), 16),",
@@ -260,26 +345,26 @@ def emit_lua(styles):
            "  fh:close()",
            "end",
            "local PIECES = {"]
-    for d, name, shaded_style, base, detail in rows:
-        out.append('  { dir="%s", name="%s", two=%s, base={\n    %s },\n    shade={\n    %s } },'
-                   % (d, name, "true" if shaded_style else "false",
-                      tbl(base), tbl(detail) or "0"))
+    for d, name, lo, up, base, detail in rows:
+        out.append('  { dir="%s", name="%s", lo="%s", up="%s", base={\n    %s },\n    shade={\n    %s } },'
+                   % (d, name, lo, up, tbl(base), tbl(detail) or "0"))
     out.append("}")
     out.append(r"""
 local done = 0
 for _, p in ipairs(PIECES) do
   local spr = Sprite(32, 32)
-  spr.layers[1].name = p.two and 'base' or 'flat'
+  spr.layers[1].name = p.lo
   local img = spr.cels[1].image
   for _, e in ipairs(p.base) do img:putPixel(e[1], e[2], col(e[3])) end
-  if p.two and #p.shade > 1 then
+  if #p.shade > 1 then
     local lyr = spr:newLayer()
-    lyr.name = 'shade'
+    lyr.name = p.up
     local im2 = Image(32, 32, spr.colorMode)
     for _, e in ipairs(p.shade) do im2:putPixel(e[1], e[2], col(e[3])) end
     spr:newCel(lyr, spr.frames[1], im2, Point(0, 0))
   end
   local stem = ROOT .. p.dir .. '/' .. p.name
+  pcall(os.remove, stem .. '.aseprite')
   spr:saveAs(stem .. '.aseprite')
   save_png(spr, stem .. '_1x.png')
   spr:close()

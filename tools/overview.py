@@ -29,7 +29,7 @@ def _wall_pieces():
     spec = importlib.util.spec_from_file_location("gen_walls", os.path.join(TOOLS, "gen_walls.py"))
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
-    return list(m.PIECES)
+    return list(m.ALL_PIECES)
 
 
 WALLS = _wall_pieces()

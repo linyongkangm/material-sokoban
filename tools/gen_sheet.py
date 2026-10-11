@@ -31,7 +31,7 @@ gs = _load("gen_sokoban")
 gm = _load("gen_murdoku")
 gw = _load("gen_walls")
 
-ORDER = ["floor", "box", "goal", "player"] + list(gw.PIECES)
+ORDER = ["floor", "box", "goal", "player"] + list(gw.ALL_PIECES)
 N = gs.N
 STYLES = {
     "shaded": {"dir": "tiles", "layers": ("base", "shade"), "src": gs, "sheet": "sokoban_sheet"},
@@ -55,11 +55,11 @@ def columns(style):
                 outline, body = gm.paint(name)
                 yield name, body + outline, []
         elif style == "shaded":
-            body, detail, ink = gw.shaded(gw.PIECES[name])
+            body, detail, ink = gw.piece(name, "shaded")
             yield name, body + ink, detail
         else:
-            body, crest, ink = gw.flat(gw.PIECES[name])
-            yield name, body, crest + ink
+            body, detail, ink = gw.piece(name, "flat")
+            yield name, body, detail + ink
 
 
 def _pixels(style):

@@ -104,11 +104,15 @@ def tile_floor():
 # -------------------------------------------------------------------- box
 def tile_box():
     g = Grid()
-    g.round_rect(3, 3, 28, 28, 3, OCHRE)
-    g.rect(3, 3, 28, 5, OCHRE_HI)                # one flat highlight band
-    g.border(6, 6, 25, 25, INK)                  # inset plank frame in ink
+    # 18px of fill, because this style adds a 2px ink ring *outside* the shape:
+    # the drawn footprint lands on 5..26, i.e. 22px with a 5px margin, which is
+    # exactly how far an edge wall reaches into the cell. The shaded crate needs
+    # no such allowance -- its outline sits inside its own silhouette.
+    g.round_rect(7, 7, 24, 24, 3, OCHRE)
+    g.rect(7, 7, 24, 9, OCHRE_HI)                # one flat highlight band
+    g.border(10, 10, 21, 21, INK)                # inset plank frame in ink
     g.rect(14, 14, 17, 17, INK)                  # centre plate
-    for nx, ny in ((6, 6), (25, 6), (6, 25), (25, 25)):
+    for nx, ny in ((10, 10), (21, 10), (10, 21), (21, 21)):
         g.rect(nx, ny, nx + 1, ny + 1, INK)      # nail heads
     return g
 
