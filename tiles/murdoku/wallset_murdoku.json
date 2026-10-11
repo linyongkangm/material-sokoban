@@ -1,0 +1,277 @@
+{
+ "bits": {
+  "E": 2,
+  "N": 1,
+  "S": 4,
+  "W": 8
+ },
+ "cols": 8,
+ "draw_order": [
+  "single",
+  "double"
+ ],
+ "index": {
+  "0": {
+   "arms": [],
+   "kind": "double",
+   "name": "wall_post"
+  },
+  "1": {
+   "arms": [
+    "N"
+   ],
+   "kind": "double",
+   "name": "wall_end_n"
+  },
+  "10": {
+   "arms": [
+    "E",
+    "W"
+   ],
+   "kind": "double",
+   "name": "wall_h"
+  },
+  "11": {
+   "arms": [
+    "E",
+    "N",
+    "W"
+   ],
+   "kind": "double",
+   "name": "wall_tee_s"
+  },
+  "12": {
+   "arms": [
+    "S",
+    "W"
+   ],
+   "kind": "double",
+   "name": "wall_corner_sw"
+  },
+  "13": {
+   "arms": [
+    "N",
+    "S",
+    "W"
+   ],
+   "kind": "double",
+   "name": "wall_tee_e"
+  },
+  "14": {
+   "arms": [
+    "E",
+    "S",
+    "W"
+   ],
+   "kind": "double",
+   "name": "wall_tee_n"
+  },
+  "15": {
+   "arms": [
+    "E",
+    "N",
+    "S",
+    "W"
+   ],
+   "kind": "double",
+   "name": "wall_cross"
+  },
+  "16": null,
+  "17": {
+   "arms": [
+    "N"
+   ],
+   "kind": "single",
+   "name": "halfwall_n"
+  },
+  "18": {
+   "arms": [
+    "E"
+   ],
+   "kind": "single",
+   "name": "halfwall_e"
+  },
+  "19": {
+   "arms": [
+    "E",
+    "N"
+   ],
+   "kind": "single",
+   "name": "halfwall_ne"
+  },
+  "2": {
+   "arms": [
+    "E"
+   ],
+   "kind": "double",
+   "name": "wall_end_e"
+  },
+  "20": {
+   "arms": [
+    "S"
+   ],
+   "kind": "single",
+   "name": "halfwall_s"
+  },
+  "21": {
+   "arms": [
+    "N",
+    "S"
+   ],
+   "kind": "single",
+   "name": "halfwall_ns"
+  },
+  "22": {
+   "arms": [
+    "E",
+    "S"
+   ],
+   "kind": "single",
+   "name": "halfwall_es"
+  },
+  "23": {
+   "arms": [
+    "E",
+    "N",
+    "S"
+   ],
+   "kind": "single",
+   "name": "halfwall_nes"
+  },
+  "24": {
+   "arms": [
+    "W"
+   ],
+   "kind": "single",
+   "name": "halfwall_w"
+  },
+  "25": {
+   "arms": [
+    "N",
+    "W"
+   ],
+   "kind": "single",
+   "name": "halfwall_nw"
+  },
+  "26": {
+   "arms": [
+    "E",
+    "W"
+   ],
+   "kind": "single",
+   "name": "halfwall_ew"
+  },
+  "27": {
+   "arms": [
+    "E",
+    "N",
+    "W"
+   ],
+   "kind": "single",
+   "name": "halfwall_new"
+  },
+  "28": {
+   "arms": [
+    "S",
+    "W"
+   ],
+   "kind": "single",
+   "name": "halfwall_sw"
+  },
+  "29": {
+   "arms": [
+    "N",
+    "S",
+    "W"
+   ],
+   "kind": "single",
+   "name": "halfwall_nsw"
+  },
+  "3": {
+   "arms": [
+    "E",
+    "N"
+   ],
+   "kind": "double",
+   "name": "wall_corner_ne"
+  },
+  "30": {
+   "arms": [
+    "E",
+    "S",
+    "W"
+   ],
+   "kind": "single",
+   "name": "halfwall_esw"
+  },
+  "31": {
+   "arms": [
+    "E",
+    "N",
+    "S",
+    "W"
+   ],
+   "kind": "single",
+   "name": "halfwall_nesw"
+  },
+  "4": {
+   "arms": [
+    "S"
+   ],
+   "kind": "double",
+   "name": "wall_end_s"
+  },
+  "5": {
+   "arms": [
+    "N",
+    "S"
+   ],
+   "kind": "double",
+   "name": "wall_v"
+  },
+  "6": {
+   "arms": [
+    "E",
+    "S"
+   ],
+   "kind": "double",
+   "name": "wall_corner_se"
+  },
+  "7": {
+   "arms": [
+    "E",
+    "N",
+    "S"
+   ],
+   "kind": "double",
+   "name": "wall_tee_w"
+  },
+  "8": {
+   "arms": [
+    "W"
+   ],
+   "kind": "double",
+   "name": "wall_end_w"
+  },
+  "9": {
+   "arms": [
+    "N",
+    "W"
+   ],
+   "kind": "double",
+   "name": "wall_corner_nw"
+  }
+ },
+ "index_of": {
+  "double": "mask",
+  "single": "16 + mask"
+ },
+ "placement": {
+  "double": "centred on the grid line, half a cell off the cell grid",
+  "single": "on the cell grid, no offset"
+ },
+ "rotate": "never -- the key light is baked into every tile",
+ "rows": 4,
+ "style": "murdoku",
+ "tile": 32
+}

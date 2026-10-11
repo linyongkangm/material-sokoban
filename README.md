@@ -9,7 +9,7 @@
 | 路径 | 内容 | 性质 |
 | --- | --- | --- |
 | `tools/` | 全部生成器与校验脚本（`.py` / `.lua`）、`roster_locked.sha256`、跨类总览 `overview.png` | 源码，唯一真相 |
-| `tiles/` | 着色集：4 块整格（floor / box / goal / player）+ 31 件墙（16 双面 + 15 单面），各带 `.aseprite` 与 `_1x.png`；`master.aseprite`（35 切片，1120×32）、`sokoban_sheet*.png`、`contact.png` / `scene.png` | 地块素材 |
+| `tiles/` | 着色集：4 块整格（floor / box / goal / player）+ 31 件墙（16 双面 + 15 单面），各带 `.aseprite` 与 `_1x.png`；`master.aseprite`（35 切片，1120×32）、`sokoban_sheet*.png`、`wallset*.png` + `wallset.json`（引擎图集）、`contact.png` / `scene.png` / `junctions.png` | 地块素材 |
 | `tiles/murdoku/` | 平涂集：同样 4 块整格 + 31 件墙，外加**没有生成器**的 `shelf`；`master.aseprite`、两张 sheet、`contact_murdoku.png` / `scene_murdoku.png`、户型图 `flatplan.png` 与家具总览 `furniture_contact.png` | 地块素材 |
 | `tiles/murdoku/furniture/` | 全套家具 / 门窗贴面 / 摆件，各带 `.aseprite` 与 `_1x.png`（件数以 `gen_furniture.py` 的 `PIECES` 为准），尺寸按真实家具（1 格 = 32px = 1 米） | 可编辑源，`tools/gen_furniture.py` 生成 |
 | `character/` | 12 人的交付 PNG（头像 / 徽章 / 色卡）、`pack.json`、名册条带、两张预览 | 交付层 |
@@ -219,6 +219,7 @@ Python 侧的路径常量已全部由 `__file__` 推导（`ROOT = dirname(dirnam
 ```
 cd E:/Material/material-sokoban
 "<venv python>" tools/gen_walls.py --lua            # 31 件边墙   -> tools/walls_gen.lua
+"<venv python>" tools/gen_walls.py --sheet          # 墙体图集 wallset(.png/_4x.png/.json) 两套
 "<venv python>" tools/gen_sheet.py --lua            # 两套 master -> tools/sheet_gen[_flat].lua
 "<venv python>" tools/gen_murdoku.py --lua floor,goal   # 指定的整格地块
 "<venv python>" tools/gen_furniture.py --lua        # 全套家具     -> tools/furniture_gen.lua
@@ -228,6 +229,12 @@ cd E:/Material/material-sokoban
 "<venv python>" tools/gen_flatplan.py               # 户型图，纯 PIL 合成，不碰 Aseprite
 "<venv python>" tools/make_character_page.py        # 改完名册刷新 characters.html
 ```
+
+`--sheet` 是唯一"给引擎用"的导出，**槽位号就是臂的位掩码**：N=1、E=2、S=4、W=8，0..15 是双面件
+（0 号是 `wall_post`），17..31 是单面件（同一个掩码加 16），16 号留空——"本格四条边都不报墙"不画东西。
+关卡把一个节点的臂集合解析出来之后，取瓦片是算术而不是查表。`wallset.json` 里同时写死了三条反复被踩的
+约定：双面件压在格线上（相对格子网格偏移半格）、单面件按格画无偏移、先画单面再画双面、**永远不要旋转**。
+导出时逐槽和源 `_1x.png` 比字节，31 槽全过才算成（`slots verified`），差一像素就是废图。
 
 家具与户型这两行有先后：`--lua` 只写脚本，得先 `dofile` 出 `tiles/murdoku/furniture/*_1x.png`，
 `gen_flatplan.py` 才读得到贴图和它们的真实尺寸（尺寸是从资产反查的，不是写在表里的）。

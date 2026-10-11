@@ -399,10 +399,83 @@ print('WALLS_OK pieces=' .. done)""")
     return path, len(rows)
 
 
+# ---------------------------------------------------------------- export
+COLS = 8                    # 32 slots: 16 doubles + 15 single rails + one empty
+
+
+def mask_order():
+    """index -> piece name, laid out so the index IS the arm bitmask.
+
+    N=1, E=2, S=4, W=8. Doubles take slots 0..15 (0 is `wall_post`, the node with
+    no arm leaving it); singles take 17..31 -- the same mask plus 16 -- and slot 16
+    stays empty because a cell that declares no wall edge draws nothing. An engine
+    that has resolved a node to a set of arms therefore needs arithmetic, not a
+    lookup table, and the JSON manifest beside the atlas is only there to prove
+    the picture matches the roster.
+    """
+    order = {}
+    for mask in range(16):
+        arms = frozenset("NESW"[i] for i in range(4) if (mask >> i) & 1)
+        order[mask] = BY_ARMS[arms]
+        order[16 + mask] = BY_ARMS_HALF[arms] if mask else None
+    return order
+
+
+def sheet(styles=("shaded", "murdoku")):
+    """Write the wall atlas, a 4x review copy and a JSON manifest, per style."""
+    from PIL import Image
+    order = mask_order()
+    rows = (16 + 16 + COLS - 1) // COLS
+    for s in styles:
+        d = "tiles" if s == "shaded" else "tiles/murdoku"
+        stem = "wallset" if s == "shaded" else "wallset_murdoku"
+        base = Image.new("RGBA", (COLS * N, rows * N), (0, 0, 0, 0))
+        bad, filled = [], 0
+        for idx, name in sorted(order.items()):
+            if name is None:
+                continue
+            src = Image.open(os.path.join(ROOT, d, f"{name}_1x.png")).convert("RGBA")
+            x, y = (idx % COLS) * N, (idx // COLS) * N
+            base.alpha_composite(src, (x, y))
+            # a paste one pixel off is exactly the defect this repo keeps catching,
+            # so compare the slot against the source byte for byte
+            if base.crop((x, y, x + N, y + N)).tobytes() != src.tobytes():
+                bad.append(name)
+            filled += 1
+        for scale in (1, 4):
+            im = base if scale == 1 else base.resize((base.width * 4, base.height * 4),
+                                                     Image.NEAREST)
+            tag = "" if scale == 1 else "_4x"
+            im.save(os.path.join(ROOT, d, f"{stem}{tag}.png"))
+        manifest = {
+            "tile": N, "cols": COLS, "rows": rows, "style": s,
+            "bits": {"N": 1, "E": 2, "S": 4, "W": 8},
+            "index_of": {"double": "mask", "single": "16 + mask"},
+            # the two facts that each cost a failed render in this repo
+            "placement": {"double": "centred on the grid line, half a cell off the cell grid",
+                          "single": "on the cell grid, no offset"},
+            "draw_order": ["single", "double"],
+            "rotate": "never -- the key light is baked into every tile",
+            "index": {str(i): (None if n is None else
+                               {"name": n, "arms": sorted(ALL_PIECES[n]),
+                                "kind": "single" if i >= 16 else "double"})
+                      for i, n in sorted(order.items())},
+        }
+        with open(os.path.join(ROOT, d, f"{stem}.json"), "w", encoding="utf-8") as fh:
+            json.dump(manifest, fh, indent=1, sort_keys=True)
+        print(f"{d}/{stem}.png {base.width}x{base.height}  tiles={filled}/{COLS * rows}"
+              f"  (slot 16 is the empty set)" + (f"  MISMATCH {bad}" if bad else "  slots verified"))
+        if bad:
+            raise SystemExit(f"{len(bad)} atlas slot(s) do not match their source tile")
+
+
 if __name__ == "__main__":
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     styles = args[0].split(",") if len(args) > 0 else ["shaded", "murdoku"]
     pieces = args[1].split(",") if len(args) > 1 else None
+    if "--sheet" in sys.argv:
+        sheet(tuple(styles) if styles != ["shaded", "murdoku"] else ("shaded", "murdoku"))
+        sys.exit(0)
     if "--lua" in sys.argv:
         p, n = emit_lua(styles)
         print(f"{os.path.basename(p)} written for {n} pieces")
