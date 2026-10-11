@@ -143,7 +143,8 @@ cd E:/Material/material-sokoban/art
 ```
 
 角色与动画走 MCP：`run_lua_script` 里 `pcall(dofile, 'E:/Material/material-sokoban/art/player.lua')`。
-> 上述路径修正是**待办**，本次会话只做了读取与色数实测，没有执行任何生成器重跑。
+> 截至本文撰写，上述路径修正**尚未执行**：生成器没有在本机重跑过。文中只有第 3 节的色数与
+> `sheet.png` 一类导出 PNG 的尺寸是实测所得，其余描述来自读代码。
 
 另外两条读导出数据时要小心：`player/sheet.json` 与 `lumine/lumine_walk.json` 由 **Aseprite 1.3.14.2**
 导出（本机现装 1.3.18.6-dev），且其中 `meta.scale` 写的是 `"1"`，而帧实际是 128×128（主角源 32×32）
@@ -151,7 +152,14 @@ cd E:/Material/material-sokoban/art
 
 ## 8. 版本状态
 
-独立仓库（`E:\Material` 本身不是仓库），分支 `main`，origin `git@github.com:linyongkangm/material-sokoban.git`。
-2026-10-11 核对：工作区干净，`git log origin/main..HEAD` 为空即已全部推送；共 5 个提交，
-2026-10-04 至 10-05，提交信息用中文 `feat(scope): ...` 描述每个可见改动。
-提交不等于推送，这条同样适用。
+独立仓库（`E:\Material` 本身不是仓库），分支 `main`，
+origin `git@github.com:linyongkangm/material-sokoban.git`（SSH，本机推送正常）。
+
+本节**故意不写提交数和工作区状态**——它们每提交一次就过期一次，而 `git log` 是权威的。判定方法：
+
+- 推送与否：`git log origin/main..HEAD`（或 `git rev-list --count origin/main..HEAD`）为空才算同步；
+  有输出就说明这份改动只存在于一块磁盘上。**提交不等于推送。**
+- 提交信息约定：中文 `type(scope): 一句可见改动`，例如
+  `feat(player): 修侧面头秃并给走路循环补摆臂与描边余量`。
+- 触及第 5 节那些已锁资产之前，`art/check_roster.py` 必须先通过，再连同
+  `roster_locked.sha256` 一起提交。
