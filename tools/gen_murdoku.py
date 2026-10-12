@@ -7,10 +7,11 @@ Style spec lifted from https://murdoku.com/play/puzzle-book-club-very-easy:
   - muted pastel room palette (periwinkle / lilac / mint / blush / teal /
     purple / brick), white for highlights
   - simple rounded geometry + thin ink line detail instead of texture
-This is the opposite of the shaded set in ../gen_sokoban.py, so shading is
-deliberately absent -- do not "fix" it by adding ramps back.
+This is the only tile set in the repo now (the dusk-stone shaded set was dropped),
+so shading is deliberately absent -- do not "fix" it by adding ramps back. The one
+asset that carries no directional light either is the window: see
+`gen_walls.opening()`.
 """
-import importlib.util
 import json
 import math
 import os
@@ -18,13 +19,74 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-spec = importlib.util.spec_from_file_location("gen_sokoban", os.path.join(HERE, "gen_sokoban.py"))
-gs = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(gs)
+N = 32
+OUT = "tiles"
 
-N = gs.N
-Grid = gs.Grid
-OUT = "tiles/murdoku"
+
+class Grid:
+    """32x32 paint buffer; None stays transparent.
+
+    This kernel used to live in `gen_sokoban.py`, the generator of the shaded set.
+    That set has been dropped -- one style, one source -- so the buffer, the tile
+    roster and the palette all live here now.
+    """
+
+    def __init__(self):
+        self.c = [[None] * N for _ in range(N)]
+
+    def set(self, x, y, col):
+        if 0 <= x < N and 0 <= y < N:
+            self.c[y][x] = col
+        return self
+
+    def at(self, x, y):
+        return self.c[y][x] if (0 <= x < N and 0 <= y < N) else None
+
+    def rect(self, x0, y0, x1, y1, col):
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                self.set(x, y, col)
+        return self
+
+    def border(self, x0, y0, x1, y1, col):
+        for x in range(x0, x1 + 1):
+            self.set(x, y0, col).set(x, y1, col)
+        for y in range(y0, y1 + 1):
+            self.set(x0, y, col).set(x1, y, col)
+        return self
+
+    def round_rect(self, x0, y0, x1, y1, r, col):
+        self.rect(x0, y0, x1, y1, col)
+        for cx, cy in ((x0, y0), (x1, y0), (x0, y1), (x1, y1)):
+            for dy in range(r):
+                for dx in range(r):
+                    self.set(cx + (dx if cx == x0 else -dx),
+                             cy + (dy if cy == y0 else -dy), None)
+        return self
+
+    def ring_px(self, cx, cy, rad, tol, col):
+        for y in range(N):
+            for x in range(N):
+                if abs(math.hypot(x + 0.5 - cx, y + 0.5 - cy) - rad) <= tol:
+                    self.set(x, y, col)
+        return self
+
+    def pixels(self):
+        return [{"x": x, "y": y, "color": self.c[y][x]}
+                for y in range(N) for x in range(N) if self.c[y][x]]
+
+    def outline(self, col):
+        """1px ring of pixels just outside the silhouette (8-neighbours)."""
+        ring = []
+        for y in range(N):
+            for x in range(N):
+                if self.c[y][x] is not None:
+                    continue
+                if any(self.at(x + dx, y + dy) is not None
+                       for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                       if (dx, dy) != (0, 0)):
+                    ring.append({"x": x, "y": y, "color": col})
+        return ring
 
 INK = "#191922"
 INK_SOFT = "#2F2E3D"
@@ -97,9 +159,10 @@ def tile_floor():
 
 
 # ------------------------------------------------------------------- wall
-# No wall cell here either -- see the note in gen_sokoban.py. The flat set's
-# walls are the same seven edge pieces, drawn by tools/gen_walls.py under the
-# flat rules (one fill, one lighter band, 2px ink, no ramps).
+# No wall cell here, and none anywhere in this repo: the wall is a grid EDGE, so
+# its pieces are drawn by tools/gen_walls.py -- 16 double-sided orientations, 15
+# single-sided rails and 4 wall-mounted openings, all under the rules above (one
+# fill, one lighter band, 2px ink, no ramps).
 
 # -------------------------------------------------------------------- box
 def tile_box():
@@ -231,9 +294,9 @@ def build_sheet():
     calls.append(["draw_pixels_at", {"filename": master, "layer_name": "flat",
                                      "frame_index": 1, "pixels": flat}])
     calls.append(["export_frame", {"filename": master, "frame_index": 1,
-                                   "output_filename": f"{OUT}/murdoku_sheet.png", "scale": 1}])
+                                   "output_filename": f"{OUT}/sheet.png", "scale": 1}])
     calls.append(["export_frame", {"filename": master, "frame_index": 1,
-                                   "output_filename": f"{OUT}/murdoku_sheet_4x.png", "scale": 4}])
+                                   "output_filename": f"{OUT}/sheet_4x.png", "scale": 4}])
     calls.append(["get_color_stats", {"filename": master, "frame_index": 1, "top": 30}])
     return calls
 
@@ -255,7 +318,7 @@ def emit_lua(only=None):
            "-- Flat pastel set, Murdoku rules: ink outlines, flat fills, one",
            "-- lighter band at most, no ramps. The floor no longer draws an ink",
            "-- grid: the wall is a grid edge, so a black line means a wall.",
-           "local DIR = 'E:/Material/material-sokoban/tiles/murdoku/'",
+           "local DIR = 'E:/Material/material-sokoban/tiles/'",
            "local function col(h)",
            "  return Color(tonumber(string.sub(h, 2, 3), 16),",
            "               tonumber(string.sub(h, 4, 5), 16),",
@@ -296,7 +359,7 @@ for _, t in ipairs(TILES) do
   done = done + 1
 end
 print('TILES_FLAT_OK n=' .. done)""")
-    p = os.path.join(HERE, "tiles_gen_flat.lua")
+    p = os.path.join(HERE, "tiles_gen.lua")
     with open(p, "w", encoding="utf-8", newline="\n") as fh:
         fh.write("\n".join(out) + "\n")
     return p, [r[0] for r in rows]

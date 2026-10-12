@@ -9,9 +9,8 @@
 | 路径 | 内容 | 性质 |
 | --- | --- | --- |
 | `tools/` | 全部生成器与校验脚本（`.py` / `.lua`）、`roster_locked.sha256`、跨类总览 `overview.png` | 源码，唯一真相 |
-| `tiles/` | 着色集：4 块整格（floor / box / goal / player）+ 31 件墙（16 双面 + 15 单面），各带 `.aseprite` 与 `_1x.png`；`master.aseprite`（35 切片，1120×32）、`sokoban_sheet*.png`、`wallset*.png` + `wallset.json`（引擎图集）、`contact.png` / `scene.png` / `junctions.png` | 地块素材 |
-| `tiles/murdoku/` | 平涂集：同样 4 块整格 + 31 件墙，外加**没有生成器**的 `shelf`；`master.aseprite`、两张 sheet、`contact_murdoku.png` / `scene_murdoku.png`、户型图 `flatplan.png` 与家具总览 `furniture_contact.png` | 地块素材 |
-| `tiles/murdoku/furniture/` | 全套家具 / 门窗贴面 / 摆件，各带 `.aseprite` 与 `_1x.png`（件数以 `gen_furniture.py` 的 `PIECES` 为准），尺寸按真实家具（1 格 = 32px = 1 米） | 可编辑源，`tools/gen_furniture.py` 生成 |
+| `tiles/` | **唯一一套素材**：4 块整格（floor / box / goal / player）+ 31 件墙（16 双面 + 15 单面）+ 4 件门窗贴面 + **没有生成器**的 `shelf`，各带 `.aseprite` 与 `_1x.png`；`master.aseprite`（35 切片，1120×32）、`sheet.png` / `sheet_4x.png` / `with_shelf.png`、`wallset*.png` + `wallset.json` 与 `openings*.png` + `openings.json`（引擎图集）、`contact.png` / `scene.png` / `junctions.png`、户型图 `flatplan.png` 与家具总览 `furniture_contact.png` | 地块素材 |
+| `tiles/furniture/` | 家具与摆件，**一件一个资源**：各带 `.aseprite` 与 `_1x.png`，加一份 `furniture.json` 清单（件数以 `gen_furniture.py` 的 `PIECES` 为准），尺寸按真实家具（1 格 = 32px = 1 米） | 可编辑源，`tools/gen_furniture.py` 生成 |
 | `character/` | 12 人的交付 PNG（头像 / 徽章 / 色卡）、`pack.json`、名册条带、两张预览 | 交付层 |
 | `character/avatars/` | 12 颗头骨的 `.aseprite` 源 + `_1x.png`，其中 6 位已锁定 | 可编辑源 |
 | `character/tokens/` | 24 个 swatch / token 的 `.aseprite` 源 | 可编辑源 |
@@ -22,20 +21,25 @@
 只有 `tools/lumine.lua`、`tools/lumine_walk.lua` 和两个 preview 脚本还在，它们写往已不存在的目录，
 属于**死脚本**，文件头已标注。
 
+**地块只有一套了。** 原来 `tiles/` 是带明暗的着色集、`tiles/murdoku/` 是平涂集，同一个件画两遍。
+着色集连同 `tools/gen_sokoban.py` 已整体删除，平涂集上移接管 `tiles/`，所有 `_murdoku` 后缀去掉；
+`Grid` 画法内核搬进 `gen_murdoku.py`（它现在既是那四块整格的地块生成器，也是内核所在地）。
+留两套的代价已经现过一次：门窗贴面当时只在平涂那侧画了，着色集根本没有窗。
+
 地块 32×32，头像 64×64，主角走路 32×32；`tools/lumine*.lua` 的画布是 64×100。
 注意脚本里 `spr.layers[1].name = 'art'` 指的是**图层名**，与旧的目录名无关，别改。
 
 ## 2. 两条驱动路径
 
-**地块走 Python。** `tools/gen_sokoban.py`、`tools/gen_murdoku.py` 里有一个 `Grid` 类（32×32 列表缓冲，
+**地块走 Python。** `tools/gen_murdoku.py` 里有一个 `Grid` 类（32×32 列表缓冲，
 `rect / border / round_rect / ring_px / outline` 几个画法，`None` 保持透明），画完之后转成
 `[{x, y, color}]` 像素清单，脚本把 MCP 调用序列写成 `calls.json`（`[[tool, args], ...]`），
 由 `tools/mcp_client.py` 在**一个 stdio 连接内**重放（这条路径实测在这台机器上会卡住，现在只算备用，
 实际出图走第 7 节的 `--lua` + `dofile`）：
 
 ```
-create_canvas -> add_layer(base) -> add_layer(shade)
-  -> draw_pixels_at(base) -> draw_pixels_at(shade)
+create_canvas -> add_layer(flat) -> add_layer(ink)
+  -> draw_pixels_at(flat) -> draw_pixels_at(ink)
   -> [outline_cel] -> export_frame(scale 1)
 ```
 
@@ -67,9 +71,12 @@ dofile `lumine.lua`，顺带把静态立绘重建一遍，所以两者不会失�
 隔壁一格——这是它能平铺进户型图的前提。
 `tools/gen_flatplan.py` 再把它们摆成一张图：房间是矩形数组，**墙体由"跨房间的边"推导**（复用
 `compose.py` 的 `arms_at` / `piece_for`，所以转角、丁字、端头盖帽和 31 件墙资产完全一致），
-门就是**缺席的墙段**，窗是盖在墙带上的玻璃贴面。1 格 = 1 米，`SCALE = 4`。
+门就是**缺席的墙段**，窗是盖在墙带上的玻璃贴面。1 格 = 1 米，`SCALE = 4`。门窗贴面本身不在家具那
+里——它们装在墙上，由 `gen_walls.py` 的 `OPENINGS` 一套四件（`window_{h,v}`、`door_leaf_{h,v}`）和墙
+一起出，共用同一张剖面，所以盖上去不会错缝。
 
-**叠放次序是模型，不是画图的先后。** `LAYER` 一个字典说清每件东西站在什么上面：
+**叠放次序是模型，不是画图的先后。** `gen_furniture.LAYER` 一个字典说清每件东西站在什么上面（住在家具
+那一侧，因为"站在什么上面"是它本身的属性，户型图和 `furniture.json` 都只引用它）：
 `-2` 地面铺贴（地毯、地垫）→ `0` 家具 → `1` 摆件 → **墙** → 窗和门扇 → 标注。
 墙画在家具**之上**是有意的：平面图里砌体是固定物、家具只是顶着它摆，所以伸到线上那部分必须被墙裁掉；
 反过来画会让每张床、每个衣柜在自己那面墙上打一个洞，一整圈外框读成"断成几截的墙加中间的家具"。
@@ -91,23 +98,25 @@ dofile `lumine.lua`，顺带把静态立绘重建一遍，所以两者不会失�
 - **墨线 `#191922`，2px，手动膨胀。** 依据自己维护的 `occ` 占用表，对空像素做 5×5 窗口
   `dx*dx + dy*dy <= 4.5` 判定。刻意不用 `outline_cel`：它每次只加 1px 而且是累加的，几何改一次就
   重新长一圈，重跑几次轮廓会把图形吃掉。
-- **平涂，不做明暗斜坡**，最多一条亮带。`gen_murdoku.py` 的文档写得很直白：它是 `gen_sokoban.py`
-  的**反面**，阴影缺失是设计而非缺陷，**不要靠加回 ramp 来"修"**。
-- **主光固定在左上**：着色集里 `y=0 / x=0` 那圈永远是受光边，`x1 / y1` 那圈是暗边。整套素材靠这
-  一个约定读成同一个场景。
+- **平涂，不做明暗斜坡**，最多一条亮带。`gen_murdoku.py` 的文档写得很直白：阴影缺失是设计而非缺陷，
+  **不要靠加回 ramp 来"修"**。仓库里以前有过一套带明暗的着色集作对照，已经整体删掉——留着两套风格
+  意味着每个新件都要画两遍、并且随时可能只画了一遍（门窗就是这么变成只有平涂才有的）。
+- **主光固定在左上**：`y=0 / x=0` 那圈永远是受光边，`x1 / y1` 那圈是暗边。整套素材靠这一个约定读成
+  同一个场景。**唯一的例外是窗**：玻璃是凹进去的洞，不是一条棱，给它画一条受光边就变成
+  "一段带亮脊的墙"而不是"墙上开了个窗"。所以 `window_{h,v}` 上下（左右）完全对称——两侧各 2px 框、
+  中间 6px 玻璃，剖面与它替换的那条墙带逐行相同。门扇不是例外，它是木板，照常受光。
 - **色数预算（实测，不是愿望）**：
 
-  | 地块 | 着色集填充色 | 平涂集填充色 |
-  | --- | --- | --- |
-  | floor | 4 | 2 |
-  | box | 4 | 3 |
-  | goal | 7 | 5 |
-  | player | 17 | 6 |
-  | 墙 31 件（双面含 2px 墨线，单面含 1px） | 6 | 3 |
+  | 地块 | 填充色（不含事后补上的墨线） |
+  | --- | --- |
+  | floor | 2 |
+  | box | 3 |
+  | goal | 5 |
+  | player | 6 |
+  | 墙 31 件 + 门窗 4 件（双面含 2px 墨线，单面含 1px） | 3 |
 
-  ≤8 色这条对地形成立；着色集的主角sprite 实测 17 色（帽子、脸、背带裤、靴子各自都要一档暗部）。
-  前三行不含事后补上的墨线，最后一行含（它是 `gen_walls.py` 自己打印的口径）。上面 `player` 那行是
-  本仓库现存最大的偏离，改地块时请按 ≤8 走，不要拿它当依据。
+  口径是 `gen_walls.py` 不带参数时自己打印的那份。全部 ≤8，没有例外——上一套着色集的主角 sprite 实测
+  17 色（帽子、脸、背带裤、靴子各要一档暗部），那是它被删掉的又一个理由。
 - **墙是格子的边，不是一格。** 墙带**含墨线共 10px**（6px 石面 + 两侧各 2px 墨线）居中在格线
   （`y = 15.5` / `x = 15.5`）上，件名就是"从中心块
   伸出哪些臂（N/E/S/W）"。**16 个朝向全部各自出一件，引擎不许旋转**：`wall_post`、`wall_h`、`wall_v`、
@@ -116,9 +125,9 @@ dofile `lumine.lua`，顺带把静态立绘重建一遍，所以两者不会失�
   那件就凹下去了。第一版只交付 7 件并写了"角件丁字件旋转 90° 即可"，`compose.py` 的 mock 一拼就露馅：
   同一圈外框里有的凸有的凹。现在 `gen_walls.BY_ARMS` 是"臂集合 → 唯一资产"的查表（16 正好是四臂的全部
   子集，任何节点都查得到，无兜底），没有任何转置步骤。
-  另外两条规则各被一次失败渲染教出来。**臂出口那一侧既不描墨线、也不做侧帮明暗**
-  （`gen_walls.flank_out()`），否则每 32px 出现一道亮暗竖纹，墙又读回"格子的边"（着色集是侧帮明暗纹，
-  平涂集是亮带缺口）。**平涂集那条唯一亮带按带子的受光长边取**——横带第 13、14 行，竖带第 13、14 列，
+  另外两条规则各被一次失败渲染教出来。**臂出口那一侧既不描墨线、也不做侧帮亮带**
+  （`gen_walls.flank_out()`），否则每 32px 出现一道亮暗竖纹，墙又读回"格子的边"。
+  **那条唯一亮带按带子的受光长边取**——横带第 13、14 行，竖带第 13、14 列，
   中心块只按真正穿过它的臂来取。它原先是按"上边两像素是不是空的"找的：竖着的带子那里永远不空，
   于是整条竖墙没有亮带，转角处横墙的亮线一头撞进一条平带里就断了，还是凸凹不一；而无条件两个方向都取，
   又会在每条笔直竖墙的正中留一个 2×2 亮块，把格线读回来。
@@ -137,14 +146,14 @@ dofile `lumine.lua`，顺带把静态立绘重建一遍，所以两者不会失�
   那 5×5 换成竖剖面，顶轨亮线在角上断 5px，整圈外框看着就像没接上。
 - **10px 这个数是被"占地"逼出来的，不是审美选择。** 墙带跨在格线上就必然向相邻两格各侵入 5px，而
   "每格放得下一个整块"与"墙压在格线上"两件事不能同时成立：第一版墙带 14px（侵 7px），墙画在最后会啃掉
-  旁边箱子一条边，把墙画到箱子底下又会让墙凭空断掉 52px。所以**地块内容必须留 5px 边界余量**——着色集
-  箱子画在 `5..26`（22px；它的描边在轮廓内侧，所以 bbox 就是 22px），平涂集箱子有 2px **外**描边，填充
-  要收到 `7..24`，加上描边才正好落在 5..26。代价是墙带从"厚石条"变成"栏杆"级别的存在感，觉得太薄就
+  旁边箱子一条边，把墙画到箱子底下又会让墙凭空断掉 52px。所以**地块内容必须留 5px 边界余量**——箱子有
+  2px **外**描边，因此填充要收到 `7..24`，加上描边才正好落在 `5..26`。实测：墙带占 11..20，箱子 5..26，
+  零重叠。代价是墙带从"厚石条"变成"栏杆"级别的存在感，觉得太薄就
   回到 12px 总宽（侵 6px、箱子画 20px），两个数一起改才自洽。
 - **图层顺序：地板 → 目标点 → 墙 → 箱子 → 主角。** 目标点是地面标记，本来就该在墙下面；箱子和角色
   站在格子里，压在墙带之上是俯视关卡的常规读法。主角地块因此**不缩**，仍占满 32px，靠这条顺序解决交叠。
-- **平涂集地板自带的那圈 2px 黑网格已删除**：黑线现在只属于墙，"有黑线 = 这里有一道墙"是这套素材
-  唯一的边界语言，地板只留 `LILAC_SEAM` 板缝。着色集不受影响（它的地板本来就是倒角平板）。
+- **地板自带的那圈 2px 黑网格已删除**：黑线现在只属于墙，"有黑线 = 这里有一道墙"是这套素材
+  唯一的边界语言，地板只留 `LILAC_SEAM` 板缝。
 - **轮廓是一条逐行半宽函数 `y -> hw`**，而不是"椭圆 + 矩形"拼接——拼接处必然出现方头和太阳穴凸起。
   嫌疑人更进一步：每颗头骨是一张**作者写死的 `(y, 半宽)` 锚点表**，于是颅形是每个角色自己的决定；
   `smooth` 迭代次数同样属于身份（平滑两轮得圆顶，`smooth=0` 保留硬折角给方下颌角色）。第二批六个
@@ -195,10 +204,10 @@ dofile `lumine.lua`，顺带把静态立绘重建一遍，所以两者不会失�
 
 ## 6. 已知不可复现的资产
 
-`tiles/murdoku/shelf.aseprite`（含 `_1x.png` / `_8x.png`）没有任何生成器产出它——
+`tiles/shelf.aseprite`（含 `_1x.png` / `_8x.png`）没有任何生成器产出它——
 `gen_murdoku.py` 的 `TILES` 只有 floor / box / goal / player，`shelf` 只在 `overview.py` 的
-展示清单里出现。它是当年用 MCP 绘图工具直接画出来的，所以：**重跑平涂集会不回去补这一格，
-`overview.py` 却会照样引用它**。要改货架只能继续手改那张 `.aseprite`。
+展示清单里出现。它是当年用 MCP 绘图工具直接画出来的，所以：**重跑整套素材不会回去补这一格，
+`overview.py` 与 `with_shelf.png` 却会照样引用它**。要改货架只能继续手改那张 `.aseprite`。
 
 ## 7. 重跑之前必须改的硬编码路径
 
@@ -218,28 +227,46 @@ Python 侧的路径常量已全部由 `__file__` 推导（`ROOT = dirname(dirnam
 
 ```
 cd E:/Material/material-sokoban
-"<venv python>" tools/gen_walls.py --lua            # 31 件边墙   -> tools/walls_gen.lua
-"<venv python>" tools/gen_walls.py --sheet          # 墙体图集 wallset(.png/_4x.png/.json) 两套
-"<venv python>" tools/gen_sheet.py --lua            # 两套 master -> tools/sheet_gen[_flat].lua
+"<venv python>" tools/gen_walls.py --lua            # 31 件墙 + 4 件门窗 -> tools/walls_gen.lua
+"<venv python>" tools/gen_walls.py --sheet          # 墙体图集 wallset(.png/_4x.png/.json)
+"<venv python>" tools/gen_walls.py --openings       # 门窗图集 openings(.png/_4x.png/.json)
 "<venv python>" tools/gen_murdoku.py --lua floor,goal   # 指定的整格地块
+"<venv python>" tools/gen_sheet.py --lua            # tiles/master.aseprite -> tools/sheet_gen.lua
+"<venv python>" tools/gen_sheet.py --png            # tiles/sheet(.png/_4x.png)，逐列与地块比字节
 "<venv python>" tools/gen_furniture.py --lua        # 全套家具     -> tools/furniture_gen.lua
+"<venv python>" tools/gen_furniture.py --manifest   # 一件一个资源：furniture/furniture.json + 逐件字节校验
 "<venv python>" tools/gen_furniture.py --contact    # 家具总览 furniture_contact.png
 "<venv python>" tools/check_roster.py               # 名册改动后必跑
-"<venv python>" tools/compose.py                    # 着色集；加参数 murdoku 出平涂集
+"<venv python>" tools/compose.py                    # contact / scene / junctions 三张评审图
 "<venv python>" tools/gen_flatplan.py               # 户型图，纯 PIL 合成，不碰 Aseprite
+"<venv python>" tools/overview.py                   # 全仓库总览 tools/overview.png
 "<venv python>" tools/make_character_page.py        # 改完名册刷新 characters.html
 ```
 
-`--sheet` 是唯一"给引擎用"的导出，**槽位号就是臂的位掩码**：N=1、E=2、S=4、W=8，0..15 是双面件
+`--sheet` 与 `--openings` 是两套"给引擎用"的导出（墙一张、门窗一张）。墙体图集的**槽位号就是臂的位掩码**：N=1、E=2、S=4、W=8，0..15 是双面件
 （0 号是 `wall_post`），17..31 是单面件（同一个掩码加 16），16 号留空——"本格四条边都不报墙"不画东西。
 关卡把一个节点的臂集合解析出来之后，取瓦片是算术而不是查表。`wallset.json` 里同时写死了三条反复被踩的
 约定：双面件压在格线上（相对格子网格偏移半格）、单面件按格画无偏移、先画单面再画双面、**永远不要旋转**。
 导出时逐槽和源 `_1x.png` 比字节，31 槽全过才算成（`slots verified`），差一像素就是废图。
 
-家具与户型这两行有先后：`--lua` 只写脚本，得先 `dofile` 出 `tiles/murdoku/furniture/*_1x.png`，
+门窗图集是一道更狠的门：**贴面必须和它替换的那条墙带共用剖面**。窗要横贯整 32px，而且上下框线必须
+**正好压在墙带的 11..12 与 19..20 行上**——差一像素都不行，第一版窗框只有 12..19，每开一个窗都在墙的
+外轮廓上留一道 32px 宽的缺口；门扇则整块待在墙带（含 2px 墨线）之内，否则就是一块靠在墙上的木板。
+检查按轴向取正确的边——横件看行、竖件看列，这个搞反过一次，把好好的 `window_v` 报成不合格。门扇原来
+比墙带上沿多出 1px，就是被这道门逼出来往下挪了一格。
+
+家具**不进图集**：引擎把每件家具当独立对象摆，所以交付形态是一件一个 `.aseprite` 加一个 PNG，
+`--manifest` 再写一份 `furniture/furniture.json` 说清每件是什么——像素尺寸、按 1 格 = 1 米折算的占地、
+所在层（-2 地面铺贴 / 0 家具 / +1 台面摆件）、锚点（占地左上角）、用了几种颜色。层这张表住在
+`gen_furniture` 而不是户型图脚本里：站在什么上面是**家具本身的属性**，`gen_flatplan` 只是引用它，
+清单发布的也是同一张表。这道检查同样会咬人：把 `plant_1x.png` 缩一半再放大存回去，立刻报
+`STALE: plant: plant_1x.png is not what the generator draws` 并非零退出——盘上一张过期的 PNG 和
+当前的一模一样，只有重画一遍对字节才分得出来。
+
+家具与户型这两行有先后：`--lua` 只写脚本，得先 `dofile` 出 `tiles/furniture/*_1x.png`，
 `gen_flatplan.py` 才读得到贴图和它们的真实尺寸（尺寸是从资产反查的，不是写在表里的）。
 
-上面前三个 `--lua` 只写脚本，真正画图要在 MCP 里 `run_lua_script` 一次 `dofile` 掉它们，例如
+上面带 `--lua` 的四行只写脚本，真正画图要在 MCP 里 `run_lua_script` 一次 `dofile` 掉它们，例如
 `pcall(dofile, 'E:/Material/material-sokoban/tools/walls_gen.lua')`；`master.aseprite` 的切片用
 batch Lua 的 `spr:newSlice(Rectangle(x, 0, 32, 32))` 建，切片 PNG 用 MCP 的 `export_frame` 导出。
 **不要再走 `mcp_client.py script calls.json` 那条路**：它按调用逐个启动 Aseprite，72 个调用的批次
@@ -247,9 +274,12 @@ batch Lua 的 `spr:newSlice(Rectangle(x, 0, 32, 32))` 建，切片 PNG 用 MCP �
 `tools/*_gen*.lua` 是一次性产物，改完 Python 重跑 `--lua` 就会覆盖，不必手工编辑。
 
 角色与动画走 MCP：`run_lua_script` 里 `pcall(dofile, 'E:/Material/material-sokoban/tools/player.lua')`。
-目录重排之后跑过的是**校验与合成脚本**（`check_roster` / `compose` ×2 / `roster_preview` /
-`character_preview` / `player_preview` / `make_character_page` / `overview`），会重写 `.aseprite` 的
-生成器一支都没跑——`check_roster.py` 报 `locked fingerprints: 12/12 verified unchanged` 就是证据。
+每次动过目录或画风常量，跑法分两层：**校验与合成脚本**（`check_roster` / `compose` / `roster_preview` /
+`character_preview` / `player_preview` / `make_character_page` / `overview`）不写 `.aseprite`，可以随时
+重跑；**生成器**会重写 `.aseprite`，只在素材确实要变时跑。要证明"只是搬家、没有重画"，就把整目录的
+SHA-256 存一份基线，跑完再比：本次 `tiles/` 143 个文件前后一一对上，只有 3 个 `.aseprite` 字节不同
+（容器里有每次保存都变的元数据，它们导出的 PNG 全部逐字节相同——所以差异不在像素上）。
+派生图必须一起重跑并核对，`gen_sheet.py --png` 逐列与地块比字节就是为这件事。
 
 读导出数据时要小心：`player/sheet.json` 由 **Aseprite 1.3.14.2** 导出（本机现装 1.3.18.6-dev），
 且 `meta.scale` 写的是 `"1"`，而帧实际是 128×128（主角源 32×32）、帧间隔 1px 留白。

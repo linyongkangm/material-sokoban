@@ -17,7 +17,7 @@ Walls go over the furniture on purpose: in plan view the masonry is the fixed
 structure and the pieces abut it. `LAYER` is the one place that says what stands
 on what, and `audit()` refuses a surface piece with nothing under it.
 
-    python tools/gen_flatplan.py            # writes tiles/murdoku/flatplan.png
+    python tools/gen_flatplan.py            # writes tiles/flatplan.png
 """
 import importlib.util
 import math
@@ -27,7 +27,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-FLAT = os.path.join(ROOT, "tiles", "murdoku")
+TILES_DIR = os.path.join(ROOT, "tiles")
 
 
 def _load(name, path=None):
@@ -145,15 +145,10 @@ DOOR_LEAVES = list(DOOR_SEGS)
 # a mistake here shows up as an overlap rather than a silent squeeze. Anchors may
 # be fractional: a 摆件 is half a cell and has to land in the middle of the
 # surface it belongs to.
-FLOOR_LEVEL, SURFACE = -2, 1
-# What a piece stands on. Same layer = must not overlap; higher layer = drawn
-# later, i.e. on top. This is the whole layering model, and audit() enforces it.
-LAYER = {"rug": FLOOR_LEVEL, "mat": FLOOR_LEVEL,
-         "vase": SURFACE, "bowl": SURFACE, "books": SURFACE, "cushion": SURFACE}
-
-
-def layer_of(name):
-    return LAYER.get(name, 0)
+# The layer a piece stands on belongs to the piece, not to this file, so it comes
+# from gen_furniture -- `furniture.json` publishes the same table the plan obeys.
+FLOOR_LEVEL, SURFACE = gf.FLOOR_LEVEL, gf.SURFACE
+layer_of = gf.layer_of
 
 
 FURNITURE = [
@@ -207,7 +202,7 @@ def font(px):
 
 
 def load_tile(name, scale):
-    for d in (FLAT, os.path.join(FLAT, "furniture")):
+    for d in (TILES_DIR, os.path.join(TILES_DIR, "furniture")):
         p = os.path.join(d, f"{name}_1x.png")
         if os.path.exists(p):
             im = Image.open(p).convert("RGBA")
@@ -358,7 +353,7 @@ def render():
         d.text((px - (bb[2] - bb[0]) // 2, py - 30), label, font=big, fill=(25, 25, 34, 255))
         bb2 = d.textbbox((0, 0), sub, font=small)
         d.text((px - (bb2[2] - bb2[0]) // 2, py + 6), sub, font=small, fill=(90, 92, 110, 255))
-    dest = os.path.join(FLAT, "flatplan.png")
+    dest = os.path.join(TILES_DIR, "flatplan.png")
     out.convert("RGB").save(dest)
     total = sum(area(n) for n in LABELS)
     # plain ASCII on stdout: this box's console codec is GBK and chokes on m2's

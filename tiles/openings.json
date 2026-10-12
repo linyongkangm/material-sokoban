@@ -1,0 +1,25 @@
+{
+ "cols": 4,
+ "draw_order": [
+  "wall band",
+  "window",
+  "door leaf"
+ ],
+ "gap": "a doorway is an ABSENT wall segment, capped by wall_end_*",
+ "index": {
+  "0": "window_h",
+  "1": "window_v",
+  "2": "door_leaf_h",
+  "3": "door_leaf_v"
+ },
+ "kind": {
+  "door_leaf_h": "leaf inside a doorway gap",
+  "door_leaf_v": "leaf inside a doorway gap",
+  "window_h": "glass over the band",
+  "window_v": "glass over the band"
+ },
+ "placement": "centred on the grid line, half a cell off the cell grid",
+ "rotate": "never -- h and v are separate tiles, the key light is baked",
+ "rows": 1,
+ "tile": 32
+}

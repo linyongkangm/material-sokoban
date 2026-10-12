@@ -11,7 +11,6 @@ from PIL import Image, ImageDraw, ImageFont
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(TOOLS)
 TILES_DIR = os.path.join(ROOT, "tiles")
-FLAT = os.path.join(TILES_DIR, "murdoku")
 AVS = os.path.join(ROOT, "character", "avatars")
 W = 980
 PAD = 20
@@ -65,17 +64,14 @@ def main():
     head = Image.new("RGBA", (W, 96), PAPER_BG)
     hd = ImageDraw.Draw(head)
     hd.text((PAD, 20), "Sokoban  /  full render", font=font(38), fill=INK)
-    hd.text((PAD, 66), "two tile styles, a shelf, one hero avatar, six suspects - all drawn through aseprite-mcp",
+    hd.text((PAD, 66), "one tile style, a shelf, one hero avatar, six suspects - all drawn through aseprite-mcp",
             font=font(16, False), fill=MUTED)
     parts.append(head)
 
-    parts.append(panel("A", "shaded 32x32 set, tiled into a mock level - bevelled stone, cool walls, warm crates", PAPER_BG))
+    parts.append(panel("A", "the 32x32 set, tiled into a mock level - pastel fills, 2px ink, no ramps", PAPER_BG))
     parts.append(fit(Image.open(os.path.join(TILES_DIR, "scene.png")).convert("RGB").convert("RGBA"), W))
 
-    parts.append(panel("B", "Murdoku-style flat set, same level - pastel fills, 2px ink, no ramps", PAPER_BG))
-    parts.append(fit(Image.open(os.path.join(FLAT, "scene_murdoku.png")).convert("RGB").convert("RGBA"), W))
-
-    parts.append(panel("C", "flat set at 4x - surfaces shown as they actually tile (2x2), objects alone", DARK_BG))
+    parts.append(panel("C", "the set at 4x - surfaces shown as they actually tile (2x2), objects alone", DARK_BG))
     # the full-bleed surfaces keep their ink grid on one edge only, so a single
     # tile looks like it has a stray black border; 2x2 shows the real read
     scale = 3
@@ -85,7 +81,7 @@ def main():
     strip = Image.new("RGBA", (W, cell + 2 * 12), DARK_BG)
     x = 14
     for t, rep in surfaces:
-        base = Image.open(os.path.join(FLAT, f"{t}_1x.png")).convert("RGBA")
+        base = Image.open(os.path.join(TILES_DIR, f"{t}_1x.png")).convert("RGBA")
         patch = Image.new("RGBA", (32 * rep, 32 * rep))
         for ry in range(rep):
             for rx in range(rep):
@@ -94,7 +90,7 @@ def main():
                                            Image.NEAREST), (x, 12))
         x += patch.width * scale + 16
     for t in objects:
-        im = Image.open(os.path.join(FLAT, f"{t}_1x.png")).convert("RGBA")
+        im = Image.open(os.path.join(TILES_DIR, f"{t}_1x.png")).convert("RGBA")
         strip.alpha_composite(im.resize((cell, cell), Image.NEAREST), (x, 12))
         x += cell + 16
     parts.append(strip)

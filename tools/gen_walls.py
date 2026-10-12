@@ -9,7 +9,7 @@ join and butt-joined instances stay one band wide. It reaches 5px into each
 neighbouring cell, which is exactly the margin the cell pieces leave empty.
 
 Pieces are named by the arms they carry out of the centre block, and **every
-orientation is its own asset** -- 16 per style:
+orientation is its own asset** -- 16 of them:
 
     wall_post (no arm)   wall_h EW   wall_v NS   wall_cross NSEW
     wall_end_{n,e,s,w}          one arm
@@ -43,11 +43,10 @@ def _load(name):
     return m
 
 
-gs = _load("gen_sokoban")
 gm = _load("gen_murdoku")
 
-N = gs.N
-Grid = gs.Grid
+N = gm.N
+Grid = gm.Grid
 # 6 px of stone face, and the 2px ink ring on each side brings the drawn band to
 # 10 px total -- which is the number that matters, because 10 px straddling the
 # line reaches 5 px into each neighbouring cell and the cell pieces leave
@@ -104,15 +103,9 @@ BY_ARMS_HALF = {frozenset(a): n for n, a in HALF_PIECES.items()}
 ALL_PIECES = dict(PIECES)
 ALL_PIECES.update(HALF_PIECES)
 
-# shaded: one key light from the top-left, same convention as the rest of the set
-S_INK = gs.OUTL                     # #1B1F2A
-S_HI = gs.WALL_HI                   # sunlit crest
-S_LIGHT = gs.WALL_LIGHT             # lit flank
-S_MID = gs.WALL_MID                 # stone face
-S_DK = gs.WALL_DK                   # underside
-S_DEEP = "#39404F"                  # the away-side face, one step under DK
-
-# flat: Murdoku rules -- one fill, one lighter band, heavy ink, no ramps
+# The band's three tones: Murdoku rules -- one fill, one lighter band, heavy ink,
+# no ramps. The lighter row/column is the key-light side (north for a horizontal
+# run, west for a vertical one), which is why every orientation is its own asset.
 F_INK = gm.INK
 F_FILL = gm.PERI
 F_HI = "#BFC6E2"
@@ -160,6 +153,52 @@ def px(x, y, col):
     return {"x": x, "y": y, "color": col}
 
 
+# ---------------------------------------------------------------- openings
+# Doors and windows are wall-mounted, not furniture: a window replaces the stone
+# of a band and a leaf lies along the wall inside a gap, so both are placed on the
+# grid line exactly like the wall tile under them. They live here, in the wall
+# generator, beside the pieces they sit on -- they used to be defined under
+# furniture/, which is how they ended up existing in one style only.
+OPENINGS = ("window_h", "window_v", "door_leaf_h", "door_leaf_v")
+
+
+def opening(name):
+    """(base, detail) pixel lists for a wall-mounted opening.
+
+    Three lessons are baked into these four shapes. A doorway is an **absent**
+    wall segment capped by `wall_end_*`, so the leaf only has to be the panel
+    lying against the wall -- the first version swept a radius-28 quarter circle
+    for the swing, which leaves a 32px cell almost immediately and came out as a
+    hook and a dot. The vertical pieces are authored, not rotated: rotating the
+    leaf carried its hinge to the wrong end and it rendered as a bracket jutting
+    outside the flat's outer wall. And the window is the one asset here with no
+    directional highlight -- glass is a recessed hole, not a ridge, so a pane lit
+    along its top edge read as a piece of wall with a crest instead of a hole in
+    the wall. Its frame is also exactly the band's cross-section (rows 11..20),
+    because a frame one pixel narrower notched the wall's outline at every window.
+    """
+    g = Grid()
+    if name == "window_h":
+        g.rect(0, 11, 31, 12, gm.INK).rect(0, 19, 31, 20, gm.INK)
+        g.rect(0, 13, 31, 18, gm.WHITE)
+    elif name == "window_v":
+        g.rect(11, 0, 12, 31, gm.INK).rect(19, 0, 20, 31, gm.INK)
+        g.rect(13, 0, 18, 31, gm.WHITE)
+    elif name == "door_leaf_h":
+        g.rect(2, 11, 28, 16, gm.INK)
+        g.rect(3, 12, 27, 15, gm.OCHRE)
+        g.rect(3, 12, 27, 12, gm.OCHRE_HI)
+    elif name == "door_leaf_v":
+        g.rect(11, 2, 16, 28, gm.INK)
+        g.rect(12, 3, 15, 27, gm.OCHRE)
+        g.rect(12, 3, 12, 27, gm.OCHRE_HI)
+    body, detail = [], []
+    for p in g.pixels():
+        # the leaf's lit edge is the only thing that belongs on the shade layer
+        (detail if p["color"] == gm.OCHRE_HI else body).append(p)
+    return body, detail
+
+
 def flank_out(mask, arms, x, y, d):
     """Is the mask absent 2px that way -- i.e. is this a lit or shaded flank?
 
@@ -182,39 +221,8 @@ def flank_out(mask, arms, x, y, d):
     return True
 
 
-def shaded(arms):
-    """(base, shade, ink) pixel lists for the dusk-stone style."""
-    mask = mask_of(arms)
-    body, detail, ink = [], [], []
-
-    def out(x, y, d):
-        return flank_out(mask, arms, x, y, d)
-
-    for x, y in sorted(mask):
-        up, dn = out(x, y, (0, -2)), out(x, y, (0, 2))
-        lf, rt = out(x, y, (-2, 0)), out(x, y, (2, 0))
-        if up:
-            detail.append(px(x, y, S_HI))
-        elif lf:
-            detail.append(px(x, y, S_LIGHT))
-        elif dn:
-            detail.append(px(x, y, S_DK))
-        elif rt:
-            detail.append(px(x, y, S_DEEP))
-        else:
-            body.append(px(x, y, S_MID))
-            # speckle so the long stone faces do not go flat, as in tile_wall
-            if (x * 13 + y * 7) % 29 == 0:
-                detail.append(px(x, y, S_LIGHT))
-            elif (x * 5 + y * 11) % 37 == 0:
-                detail.append(px(x, y, S_DK))
-    for x, y in ink_of(arms, mask):
-        ink.append(px(x, y, S_INK))
-    return body, detail, ink
-
-
 def flat(arms):
-    """(fill, one crest band, ink) pixel lists for the flat pastel style.
+    """(fill, one crest band, ink) pixel lists for the band.
 
     The crest is the band's **lit long side**: rows 13,14 of a run that goes east
     or west, columns 13,14 of a run that goes north or south. It used to be found
@@ -249,7 +257,7 @@ def flat(arms):
     return body, crest, ink
 
 
-def half(arms, style="shaded"):
+def half(arms):
     """(body, detail, ink) for a single-sided piece: 5px strips on this cell's
     own edges.
 
@@ -259,15 +267,13 @@ def half(arms, style="shaded"):
     overwrote the corner block with the later strip's cross-section instead,
     which broke the earlier rail's bright line for 5px and made every corner of
     the frame look disconnected.
+
+    Cross-section, from the grid line inward: ink, lit face, face, face, ink. The
+    outlines are 1px rather than the house 2px because a 5px strip cannot carry 4px
+    of ink and still show stone.
     """
-    if style == "shaded":
-        ph = (("ink", S_INK), ("detail", S_HI), ("body", S_MID),
-              ("detail", S_DK), ("ink", S_INK))
-        pv = (("ink", S_INK), ("detail", S_LIGHT), ("body", S_MID),
-              ("detail", S_DEEP), ("ink", S_INK))
-    else:
-        ph = pv = (("ink", F_INK), ("detail", F_HI), ("body", F_FILL),
-                   ("body", F_FILL), ("ink", F_INK))
+    ph = pv = (("ink", F_INK), ("detail", F_HI), ("body", F_FILL),
+               ("body", F_FILL), ("ink", F_INK))
     # index 0 is the grid-line side of the strip, HALF-1 the edge facing inward
     strips = []
     if "N" in arms:
@@ -292,28 +298,35 @@ def half(arms, style="shaded"):
     return out["body"], out["detail"], out["ink"]
 
 
-def piece(name, style):
-    """Pixels of any wall piece, double- or single-sided."""
+def piece(name):
+    """(body, detail, ink) for any wall asset: double-sided, single-sided, opening.
+
+    An opening draws its own outline, so its ink list is empty -- the same
+    contract the 1px half-wall cross-section already keeps.
+    """
+    if name in OPENINGS:
+        body, detail = opening(name)
+        return body, detail, []
     arms = ALL_PIECES[name]
     if name in HALF_PIECES:
-        return half(arms, style)
-    return shaded(arms) if style == "shaded" else flat(arms)
+        return half(arms)
+    return flat(arms)
 
 
-def build(style, pieces=None):
-    """MCP call plans for the requested pieces in one style."""
-    shaded_style = style == "shaded"
-    out_dir = "tiles" if shaded_style else "tiles/murdoku"
+# everything the generator can draw, in the order the batch Lua emits it
+ALL_ASSETS = list(ALL_PIECES) + list(OPENINGS)
+
+
+def build(pieces=None):
+    """MCP call plans for the requested assets -- the stdio fallback path."""
+    out_dir = "tiles"
     calls = []
-    for name in ALL_PIECES:
+    for name in ALL_ASSETS:
         if pieces and name not in pieces:
             continue
         fname = f"{out_dir}/{name}.aseprite"
-        body, detail, ink = piece(name, style)
-        if shaded_style:
-            layers = [("base", body + ink), ("shade", detail)]
-        else:
-            layers = [("flat", body), ("ink", detail + ink)]
+        body, detail, ink = piece(name)
+        layers = [("flat", body), ("ink", detail + ink)]
         calls.append(["create_canvas", {"width": N, "height": N, "filename": fname}])
         for layer, _ in layers:
             calls.append(["add_layer", {"filename": fname, "layer_name": layer}])
@@ -326,24 +339,18 @@ def build(style, pieces=None):
     return calls
 
 
-def emit_lua(styles):
+def emit_lua():
     """Write a batch-Lua generator so the pieces can be drawn in ONE MCP call.
 
-    The MCP stdio client path needs ~72 calls (one Aseprite launch each) and
+    The MCP stdio client path needs ~70 calls (one Aseprite launch each) and
     stalls on this machine; the repo's other half drives Aseprite through dofile'd
     Lua, which is one call for the whole set. Pixel lists are baked in here so
     the geometry stays defined in exactly one place.
     """
     rows = []
-    for s in styles:
-        d = "tiles" if s == "shaded" else "tiles/murdoku"
-        lo, up = ("base", "shade") if s == "shaded" else ("flat", "ink")
-        for name in ALL_PIECES:
-            body, detail, ink = piece(name, s)
-            if s == "shaded":
-                rows.append((d, name, lo, up, body + ink, detail))
-            else:
-                rows.append((d, name, lo, up, body, detail + ink))
+    for name in ALL_ASSETS:
+        body, detail, ink = piece(name)
+        rows.append(("tiles", name, "flat", "ink", body, detail + ink))
 
     def tbl(pixels):
         return ",\n    ".join('{%d,%d,"%s"}' % (p["x"], p["y"], p["color"]) for p in pixels)
@@ -352,6 +359,8 @@ def emit_lua(styles):
            "-- Double-sided wall: 10px band (6px face + 2px ink each side) centred on",
            "-- the cell line, ink omitted where an arm continues into the neighbour.",
            "-- Single-sided wall: a 5px half band flush inside the owning cell's edge.",
+           "-- Openings (window/door_leaf, h and v): wall-mounted overlays, drawn after",
+           "-- the band they sit on and centred on the same grid line.",
            "local ROOT = 'E:/Material/material-sokoban/'",
            "local function col(h)",
            "  return Color(tonumber(string.sub(h, 2, 3), 16),",
@@ -421,77 +430,148 @@ def mask_order():
     return order
 
 
-def sheet(styles=("shaded", "murdoku")):
-    """Write the wall atlas, a 4x review copy and a JSON manifest, per style."""
+def sheet():
+    """Write the wall atlas, a 4x review copy and a JSON manifest."""
     from PIL import Image
     order = mask_order()
     rows = (16 + 16 + COLS - 1) // COLS
-    for s in styles:
-        d = "tiles" if s == "shaded" else "tiles/murdoku"
-        stem = "wallset" if s == "shaded" else "wallset_murdoku"
-        base = Image.new("RGBA", (COLS * N, rows * N), (0, 0, 0, 0))
-        bad, filled = [], 0
-        for idx, name in sorted(order.items()):
-            if name is None:
-                continue
-            src = Image.open(os.path.join(ROOT, d, f"{name}_1x.png")).convert("RGBA")
-            x, y = (idx % COLS) * N, (idx // COLS) * N
-            base.alpha_composite(src, (x, y))
-            # a paste one pixel off is exactly the defect this repo keeps catching,
-            # so compare the slot against the source byte for byte
-            if base.crop((x, y, x + N, y + N)).tobytes() != src.tobytes():
-                bad.append(name)
-            filled += 1
-        for scale in (1, 4):
-            im = base if scale == 1 else base.resize((base.width * 4, base.height * 4),
-                                                     Image.NEAREST)
-            tag = "" if scale == 1 else "_4x"
-            im.save(os.path.join(ROOT, d, f"{stem}{tag}.png"))
-        manifest = {
-            "tile": N, "cols": COLS, "rows": rows, "style": s,
-            "bits": {"N": 1, "E": 2, "S": 4, "W": 8},
-            "index_of": {"double": "mask", "single": "16 + mask"},
-            # the two facts that each cost a failed render in this repo
-            "placement": {"double": "centred on the grid line, half a cell off the cell grid",
-                          "single": "on the cell grid, no offset"},
-            "draw_order": ["single", "double"],
-            "rotate": "never -- the key light is baked into every tile",
-            "index": {str(i): (None if n is None else
-                               {"name": n, "arms": sorted(ALL_PIECES[n]),
-                                "kind": "single" if i >= 16 else "double"})
-                      for i, n in sorted(order.items())},
-        }
-        with open(os.path.join(ROOT, d, f"{stem}.json"), "w", encoding="utf-8") as fh:
-            json.dump(manifest, fh, indent=1, sort_keys=True)
-        print(f"{d}/{stem}.png {base.width}x{base.height}  tiles={filled}/{COLS * rows}"
-              f"  (slot 16 is the empty set)" + (f"  MISMATCH {bad}" if bad else "  slots verified"))
-        if bad:
-            raise SystemExit(f"{len(bad)} atlas slot(s) do not match their source tile")
+    d, stem = "tiles", "wallset"
+    base = Image.new("RGBA", (COLS * N, rows * N), (0, 0, 0, 0))
+    bad, filled = [], 0
+    for idx, name in sorted(order.items()):
+        if name is None:
+            continue
+        src = Image.open(os.path.join(ROOT, d, f"{name}_1x.png")).convert("RGBA")
+        x, y = (idx % COLS) * N, (idx // COLS) * N
+        base.alpha_composite(src, (x, y))
+        # a paste one pixel off is exactly the defect this repo keeps catching,
+        # so compare the slot against the source byte for byte
+        if base.crop((x, y, x + N, y + N)).tobytes() != src.tobytes():
+            bad.append(name)
+        filled += 1
+    for scale in (1, 4):
+        im = base if scale == 1 else base.resize((base.width * 4, base.height * 4),
+                                                 Image.NEAREST)
+        tag = "" if scale == 1 else "_4x"
+        im.save(os.path.join(ROOT, d, f"{stem}{tag}.png"))
+    manifest = {
+        "tile": N, "cols": COLS, "rows": rows,
+        "bits": {"N": 1, "E": 2, "S": 4, "W": 8},
+        "index_of": {"double": "mask", "single": "16 + mask"},
+        # the two facts that each cost a failed render in this repo
+        "placement": {"double": "centred on the grid line, half a cell off the cell grid",
+                      "single": "on the cell grid, no offset"},
+        "draw_order": ["single", "double"],
+        "rotate": "never -- the key light is baked into every tile",
+        "index": {str(i): (None if n is None else
+                           {"name": n, "arms": sorted(ALL_PIECES[n]),
+                            "kind": "single" if i >= 16 else "double"})
+                  for i, n in sorted(order.items())},
+    }
+    with open(os.path.join(ROOT, d, f"{stem}.json"), "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh, indent=1, sort_keys=True)
+    print(f"{d}/{stem}.png {base.width}x{base.height}  tiles={filled}/{COLS * rows}"
+          f"  (slot 16 is the empty set)" + (f"  MISMATCH {bad}" if bad else "  slots verified"))
+    if bad:
+        raise SystemExit(f"{len(bad)} atlas slot(s) do not match their source tile")
+
+
+BAND_EDGE = (BAND[0] - 2, BAND[-1] + 2)      # the band's outer ink rows/columns
+
+
+def openings_sheet():
+    """Export the wall-mounted overlays: a row atlas, a 4x copy and a manifest.
+
+    The gate here is the one a loose-tile contact sheet cannot show: an opening is
+    only correct if it shares the cross-section of the band it replaces. A window
+    must span the full 32px and keep its ink on the band's own rows, or every run
+    it is laid over gets a seam and a step in it; a leaf must stay inside the band
+    plus its 2px outline, or it is a plank leaning on a wall.
+    """
+    from PIL import Image
+    d, stem = "tiles", "openings"
+    base = Image.new("RGBA", (N * len(OPENINGS), N), (0, 0, 0, 0))
+    bad, checked = [], []
+    for i, name in enumerate(OPENINGS):
+        src = Image.open(os.path.join(ROOT, d, f"{name}_1x.png")).convert("RGBA")
+        base.alpha_composite(src, (i * N, 0))
+        if src.tobytes() != base.crop((i * N, 0, (i + 1) * N, N)).tobytes():
+            bad.append(name)
+        rows, cols = [], []
+        for y in range(N):
+            for x in range(N):
+                if src.getpixel((x, y))[3]:
+                    rows.append(y)
+                    cols.append(x)
+        lo, hi = BAND_EDGE
+        # the cross-section is the axis the band is thin along: rows for an h
+        # piece, columns for a v one. Reading the other axis is what made a
+        # correct window_v look like it failed.
+        horiz = name.endswith("_h")
+        cross = rows if horiz else cols
+        along = cols if horiz else rows
+        inside = min(cross) >= lo and max(cross) <= hi
+        if name.startswith("window"):
+            # not merely "inside" the band: a window replaces the stone, so its
+            # outline has to land on the band's own rows. The first version was
+            # one pixel narrower on each side, which left a notch in the wall's
+            # outline for the full width of every window.
+            exact = (min(cross), max(cross)) == (lo, hi)
+            full = min(along) == 0 and max(along) == N - 1
+            checked.append("%s:band=%d..%d exact=%s full_span=%s"
+                           % (name, min(cross), max(cross), exact, full))
+            if not (exact and full):
+                bad.append("%s does not match the band it replaces" % name)
+        else:
+            checked.append("%s:band=%d..%d" % (name, min(cross), max(cross)))
+            if not inside:
+                bad.append("%s reaches outside the wall band" % name)
+    for scale in (1, 4):
+        im = base if scale == 1 else base.resize((base.width * 4, base.height * 4),
+                                                 Image.NEAREST)
+        tag = "" if scale == 1 else "_4x"
+        im.save(os.path.join(ROOT, d, f"{stem}{tag}.png"))
+    manifest = {
+        "tile": N, "cols": len(OPENINGS), "rows": 1,
+        "index": {str(i): name for i, name in enumerate(OPENINGS)},
+        "kind": {name: ("glass over the band" if name.startswith("window")
+                        else "leaf inside a doorway gap") for name in OPENINGS},
+        # the contract an engine has to honour, same as the wall set's
+        "placement": "centred on the grid line, half a cell off the cell grid",
+        "draw_order": ["wall band", "window", "door leaf"],
+        "rotate": "never -- h and v are separate tiles, the key light is baked",
+        "gap": "a doorway is an ABSENT wall segment, capped by wall_end_*",
+    }
+    with open(os.path.join(ROOT, d, f"{stem}.json"), "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh, indent=1, sort_keys=True)
+    print(f"{d}/{stem}.png {base.width}x{base.height}  " + "  ".join(checked)
+          + ("  MISMATCH " + str(bad) if bad else "  band-compatible"))
+    if bad:
+        raise SystemExit(f"{len(bad)} opening(s) do not sit on the wall band")
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    styles = args[0].split(",") if len(args) > 0 else ["shaded", "murdoku"]
-    pieces = args[1].split(",") if len(args) > 1 else None
+    pieces = [a for a in sys.argv[1:] if not a.startswith("--")]
+    pieces = pieces[0].split(",") if pieces else None
+    if "--openings" in sys.argv:
+        openings_sheet()
+        sys.exit(0)
     if "--sheet" in sys.argv:
-        sheet(tuple(styles) if styles != ["shaded", "murdoku"] else ("shaded", "murdoku"))
+        sheet()
         sys.exit(0)
     if "--lua" in sys.argv:
-        p, n = emit_lua(styles)
+        p, n = emit_lua()
         print(f"{os.path.basename(p)} written for {n} pieces")
         sys.exit(0)
-    calls = []
-    for s in styles:
-        calls += build(s, pieces)
+    calls = build(pieces)
     with open(os.path.join(HERE, "calls_walls.json"), "w", encoding="utf-8") as fh:
         json.dump(calls, fh)
-    print(f"calls_walls.json -> {len(calls)} calls for {','.join(styles)}"
+    print(f"calls_walls.json -> {len(calls)} calls"
           + (f" [{','.join(pieces)}]" if pieces else ""))
-    for s in ("shaded", "murdoku"):
-        for name, arms in PIECES.items():
-            if pieces and name not in pieces:
-                continue
-            body, detail, ink = shaded(arms) if s == "shaded" else flat(arms)
-            cols = {p["color"] for p in body + detail + ink}
-            print(f"  {s:7s} {name:11s} arms={arms or '-':4s} px={len(body)+len(detail)+len(ink):4d}"
-                  f" colors={len(cols)}")
+    for name, arms in ALL_PIECES.items():
+        if pieces and name not in pieces:
+            continue
+        body, detail, ink = piece(name)
+        cols = {p["color"] for p in body + detail + ink}
+        print(f"  {name:14s} arms={arms or '-':4s} px={len(body)+len(detail)+len(ink):4d}"
+              f" colors={len(cols)}")

@@ -29,10 +29,10 @@ def _load(name):
 
 gw = _load("gen_walls")
 
-# compose.py [subdir] -- "murdoku" renders the flat-outline variant
-SUB = sys.argv[1] if len(sys.argv) > 1 else ""
-TILES_DIR = os.path.join(ROOT, "tiles", SUB) if SUB else os.path.join(ROOT, "tiles")
-SUFFIX = f"_{SUB}" if SUB else ""
+# One tile set now, so no subject argument: compose.py just writes the three
+# review images next to the tiles it read.
+TILES_DIR = os.path.join(ROOT, "tiles")
+SUFFIX = ""
 N = 32
 ORDER = ["floor", "box", "goal", "player"] + list(gw.PIECES) + list(gw.HALF_PIECES)
 
@@ -152,8 +152,9 @@ def load(name, scale):
 
 
 def _bg():
-    # the flat pastel set is shown on their paper tone, the shaded set on dark
-    return (242, 240, 247, 255) if SUB == "murdoku" else (18, 20, 26, 255)
+    # the pastel set is shown on the paper tone its own floors use, so a review
+    # sheet does not invent a background the tiles never sit on in game
+    return (242, 240, 247, 255)
 
 
 def is_surface(im):

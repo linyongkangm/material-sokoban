@@ -272,6 +272,5 @@
  },
  "rotate": "never -- the key light is baked into every tile",
  "rows": 4,
- "style": "shaded",
  "tile": 32
 }

@@ -1,0 +1,359 @@
+{
+ "anchor": "top-left of the footprint, placed on the cell grid",
+ "cell_metres": 1,
+ "cell_px": 32,
+ "ink": "2px house outline, dilated inside the piece's own box, so a piece never bleeds ink into the neighbouring cell",
+ "layers": {
+  "-2": "floor covering, drawn under the furniture",
+  "0": "furniture, placed on the floor",
+  "1": "ornament, drawn on top of a surface piece"
+ },
+ "piece_count": 23,
+ "pieces": {
+  "basin": {
+   "aseprite": "basin.aseprite",
+   "cells": [
+    1.0,
+    1.0
+   ],
+   "colours": 5,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "basin_1x.png",
+   "px": [
+    32,
+    32
+   ]
+  },
+  "bathtub": {
+   "aseprite": "bathtub.aseprite",
+   "cells": [
+    2.0,
+    1.0
+   ],
+   "colours": 5,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "bathtub_1x.png",
+   "px": [
+    64,
+    32
+   ]
+  },
+  "bed_double": {
+   "aseprite": "bed_double.aseprite",
+   "cells": [
+    2.0,
+    2.0
+   ],
+   "colours": 8,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "bed_double_1x.png",
+   "px": [
+    64,
+    64
+   ]
+  },
+  "bed_single": {
+   "aseprite": "bed_single.aseprite",
+   "cells": [
+    1.0,
+    2.0
+   ],
+   "colours": 8,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "bed_single_1x.png",
+   "px": [
+    32,
+    64
+   ]
+  },
+  "books": {
+   "aseprite": "books.aseprite",
+   "cells": [
+    0.5,
+    0.5
+   ],
+   "colours": 5,
+   "layer": 1,
+   "layer_means": "ornament, drawn on top of a surface piece",
+   "png": "books_1x.png",
+   "px": [
+    16,
+    16
+   ]
+  },
+  "bowl": {
+   "aseprite": "bowl.aseprite",
+   "cells": [
+    0.5,
+    0.5
+   ],
+   "colours": 5,
+   "layer": 1,
+   "layer_means": "ornament, drawn on top of a surface piece",
+   "png": "bowl_1x.png",
+   "px": [
+    16,
+    16
+   ]
+  },
+  "chair": {
+   "aseprite": "chair.aseprite",
+   "cells": [
+    1.0,
+    1.0
+   ],
+   "colours": 4,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "chair_1x.png",
+   "px": [
+    32,
+    32
+   ]
+  },
+  "coffee_table": {
+   "aseprite": "coffee_table.aseprite",
+   "cells": [
+    1.5,
+    1.0
+   ],
+   "colours": 4,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "coffee_table_1x.png",
+   "px": [
+    48,
+    32
+   ]
+  },
+  "cushion": {
+   "aseprite": "cushion.aseprite",
+   "cells": [
+    0.5,
+    0.5
+   ],
+   "colours": 3,
+   "layer": 1,
+   "layer_means": "ornament, drawn on top of a surface piece",
+   "png": "cushion_1x.png",
+   "px": [
+    16,
+    16
+   ]
+  },
+  "dining_table": {
+   "aseprite": "dining_table.aseprite",
+   "cells": [
+    2.0,
+    2.0
+   ],
+   "colours": 3,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "dining_table_1x.png",
+   "px": [
+    64,
+    64
+   ]
+  },
+  "dresser": {
+   "aseprite": "dresser.aseprite",
+   "cells": [
+    2.0,
+    1.0
+   ],
+   "colours": 4,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "dresser_1x.png",
+   "px": [
+    64,
+    32
+   ]
+  },
+  "fridge": {
+   "aseprite": "fridge.aseprite",
+   "cells": [
+    1.0,
+    1.0
+   ],
+   "colours": 4,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "fridge_1x.png",
+   "px": [
+    32,
+    32
+   ]
+  },
+  "mat": {
+   "aseprite": "mat.aseprite",
+   "cells": [
+    1.5,
+    0.5
+   ],
+   "colours": 4,
+   "layer": -2,
+   "layer_means": "floor covering, drawn under the furniture",
+   "png": "mat_1x.png",
+   "px": [
+    48,
+    16
+   ]
+  },
+  "plant": {
+   "aseprite": "plant.aseprite",
+   "cells": [
+    1.0,
+    1.0
+   ],
+   "colours": 6,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "plant_1x.png",
+   "px": [
+    32,
+    32
+   ]
+  },
+  "rug": {
+   "aseprite": "rug.aseprite",
+   "cells": [
+    3.0,
+    2.0
+   ],
+   "colours": 4,
+   "layer": -2,
+   "layer_means": "floor covering, drawn under the furniture",
+   "png": "rug_1x.png",
+   "px": [
+    96,
+    64
+   ]
+  },
+  "shelf_unit": {
+   "aseprite": "shelf_unit.aseprite",
+   "cells": [
+    2.0,
+    1.0
+   ],
+   "colours": 8,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "shelf_unit_1x.png",
+   "px": [
+    64,
+    32
+   ]
+  },
+  "sink": {
+   "aseprite": "sink.aseprite",
+   "cells": [
+    1.0,
+    1.0
+   ],
+   "colours": 5,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "sink_1x.png",
+   "px": [
+    32,
+    32
+   ]
+  },
+  "sofa": {
+   "aseprite": "sofa.aseprite",
+   "cells": [
+    3.0,
+    1.0
+   ],
+   "colours": 3,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "sofa_1x.png",
+   "px": [
+    96,
+    32
+   ]
+  },
+  "stove": {
+   "aseprite": "stove.aseprite",
+   "cells": [
+    1.0,
+    1.0
+   ],
+   "colours": 5,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "stove_1x.png",
+   "px": [
+    32,
+    32
+   ]
+  },
+  "toilet": {
+   "aseprite": "toilet.aseprite",
+   "cells": [
+    1.0,
+    1.0
+   ],
+   "colours": 3,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "toilet_1x.png",
+   "px": [
+    32,
+    32
+   ]
+  },
+  "tv_cabinet": {
+   "aseprite": "tv_cabinet.aseprite",
+   "cells": [
+    2.0,
+    1.0
+   ],
+   "colours": 5,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "tv_cabinet_1x.png",
+   "px": [
+    64,
+    32
+   ]
+  },
+  "vase": {
+   "aseprite": "vase.aseprite",
+   "cells": [
+    0.5,
+    0.5
+   ],
+   "colours": 5,
+   "layer": 1,
+   "layer_means": "ornament, drawn on top of a surface piece",
+   "png": "vase_1x.png",
+   "px": [
+    16,
+    16
+   ]
+  },
+  "wardrobe": {
+   "aseprite": "wardrobe.aseprite",
+   "cells": [
+    2.0,
+    1.0
+   ],
+   "colours": 4,
+   "layer": 0,
+   "layer_means": "furniture, placed on the floor",
+   "png": "wardrobe_1x.png",
+   "px": [
+    64,
+    32
+   ]
+  }
+ }
+}
