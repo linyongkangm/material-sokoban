@@ -3,7 +3,7 @@
 One cell is 32px and stands for one metre. Rooms are rectangles; walls are not
 drawn by hand -- every edge between two cells that belong to different rooms (or
 to the outside) becomes a wall segment, and the existing edge-wall set resolves
-each grid node to exactly one of the 16 double-sided pieces via
+each grid node to exactly one of the 16 wall pieces via
 `compose.arms_at` / `compose.piece_for`. A doorway is simply an absent segment:
 the runs on either side already end in `wall_end_*`, which caps them.
 
@@ -312,7 +312,7 @@ def render():
     #    furniture, then the 摆件 on top of the surface they belong to
     for name, ax, ay in sorted(FURNITURE, key=lambda e: layer_of(e[0])):
         out.alpha_composite(load_tile(name, SCALE), at(ax, ay))
-    # 3. walls: every node with segments resolves to one double-sided piece, and
+    # 3. walls: every node with segments resolves to one band piece, and
     #    they land ON TOP of the furniture. In plan view the masonry is the fixed
     #    structure and the pieces abut it, so anything reaching the line has to be
     #    clipped by it -- drawing the pieces last let every bed, wardrobe and tub

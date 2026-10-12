@@ -34,14 +34,15 @@ gw = _load("gen_walls")
 TILES_DIR = os.path.join(ROOT, "tiles")
 SUFFIX = ""
 N = 32
-ORDER = ["floor", "box", "goal", "player"] + list(gw.PIECES) + list(gw.HALF_PIECES)
+ORDER = ["floor", "box", "goal", "player"] + list(gw.PIECES)
 
 # ---- the mock level ----------------------------------------------------
 # Cells hold only what stands *in* a cell. Walls are declared per cell-edge:
-# DECL holds ((col, row), 'N'|'E'|'S'|'W'). An edge both neighbours declare is a
-# DOUBLE-sided wall -- one 10px band straddling the line, drawn from the
-# centred piece set. An edge only one side declares is a SINGLE-sided wall -- a
-# 5px half band drawn flush inside that cell, from the halfwall set.
+# DECL holds ((col, row), 'N'|'E'|'S'|'W'). **One kind of wall**: an edge any
+# side declares is a wall, drawn as one 10px band centred on the line. Both
+# neighbours declaring the same line is the common case and it collapses to one
+# segment anyway, because the canonical key below is the line, not the (cell,
+# edge) pair -- which is exactly why the old double/single split was never sound.
 CELLS = [
     "............",
     "..o......o..",
@@ -64,44 +65,36 @@ def declare(c, r, *edges):
         DECL.add(((c, r), e))
 
 
-for c in range(COLS):                      # the frame: nothing on the far side,
-    declare(c, 0, "N")                     # so every border edge is single-sided
+for c in range(COLS):                      # the frame: one declaration is enough,
+    declare(c, 0, "N")                     # the band then straddles the boundary
     declare(c, ROWS - 1, "S")
 for r in range(ROWS):
     declare(0, r, "W")
     declare(COLS - 1, r, "E")
-for r in (2, 3, 4):                        # doubled vertical run A
+for r in (2, 3, 4):                        # vertical run A, declared from both sides
     declare(3, r, "E")
     declare(4, r, "W")
-for c in (4, 5, 6):                        # doubled run B turning off A -> corner
+for c in (4, 5, 6):                        # run B turning off A -> corner
     declare(c, 5, "N")
     declare(c, 4, "S")
-for r in (4, 5, 6):                        # doubled run C crossing B -> cross + tee
+for r in (4, 5, 6):                        # run C crossing B -> cross + tee
     declare(4, r, "E")
     declare(5, r, "W")
-for c in (3, 4):                           # doubled stub D meeting C
+for c in (3, 4):                           # stub D meeting C
     declare(c, 6, "N")
     declare(c, 5, "S")
-declare(6, 5, "N")                         # single-sided interior walls
+declare(6, 5, "N")                         # an interior wall one cell declares
 declare(7, 5, "N")
-declare(2, 7, "E", "S")                    # one cell mixing both kinds
+declare(2, 7, "E", "S")
 declare(3, 7, "W")
 
-NEIGH = {"N": (0, -1), "S": (0, 1), "W": (-1, 0), "E": (1, 0)}
-OPP = {"N": "S", "S": "N", "W": "E", "E": "W"}
-
-
-def is_double(c, r, e):
-    dc, dr = c + NEIGH[e][0], r + NEIGH[e][1]
-    if not (0 <= dc < COLS and 0 <= dr < ROWS):
-        return False
-    return ((c, r), e) in DECL and ((dc, dr), OPP[e]) in DECL
-
-
-# doubled edges, keyed the way the node lookup wants: H[(x, y)] is the line above
-# cell (x, y) running east from node (x, y); V[(x, y)] is the line left of it
-H = {(c, r) for r in range(ROWS) for c in range(COLS) if is_double(c, r, "N")}
-V = {(c, r) for r in range(ROWS) for c in range(COLS) if is_double(c, r, "W")}
+# H[(x, y)] is the line above cell (x, y) running east from node (x, y);
+# V[(x, y)] is the line left of it running south. Both neighbours of a line
+# canonicalise onto the same key, so a set is enough to deduplicate.
+KEY = {"N": lambda c, r: (c, r), "S": lambda c, r: (c, r + 1),
+       "W": lambda c, r: (c, r), "E": lambda c, r: (c + 1, r)}
+H = {KEY[e](c, r) for (c, r), e in DECL if e in "NS"}
+V = {KEY[e](c, r) for (c, r), e in DECL if e in "EW"}
 
 
 def arms_at(x, y, hs=None, vs=None):
@@ -126,14 +119,8 @@ def arms_at(x, y, hs=None, vs=None):
     return a
 
 
-def singles_of(c, r):
-    """Edges this cell declares that nobody across from it declares."""
-    return "".join(e for e in "NESW"
-                   if ((c, r), e) in DECL and not is_double(c, r, e))
-
-
 def piece_for(arms):
-    """The one double-sided asset carrying exactly these arms.
+    """The one asset carrying exactly these arms.
 
     There used to be a second argument here -- a PIL transpose to apply -- and
     seven base pieces to rotate. That was the bug: the key light is baked into
@@ -199,7 +186,7 @@ def scene():
     # a cell off the cell grid, which is the whole point of an edge wall
     out = Image.new("RGBA", ((COLS + 2) * N * scale, (ROWS + 2) * N * scale), _bg())
     floor = load("floor", scale)
-    # four passes, back to front: floor, the goal plate (it IS the floor, so it
+    # three passes, back to front: floor, the goal plate (it IS the floor, so it
     # belongs under the wall), the wall bands, then the pieces that stand in
     # front of them -- crate and detective. The band reaches 5px into each cell
     # and the crate leaves exactly that much margin, so the two no longer fight.
@@ -210,20 +197,6 @@ def scene():
         for c, ch in enumerate(line):
             if ch == "o":
                 out.alpha_composite(load("goal", scale),
-                                    ((c + 1) * N * scale, (r + 1) * N * scale))
-    # single-sided half bands next: they belong to a cell, not to a node, so
-    # they sit on the cell grid with no offset. They are drawn BEFORE the double
-    # bands on purpose -- a half band spans the whole 32px edge and would
-    # otherwise poke 5px into the cell area a doubled wall already owns, cutting
-    # an ink line across the thick band. Letting the double band paint over the
-    # end is what a T-junction into a wall should look like, and it avoids
-    # shipping a variant for every single/double mix (3^4 - 1 = 80 pieces).
-    singles = sum(1 for r in range(ROWS) for c in range(COLS) if singles_of(c, r))
-    for r in range(ROWS):
-        for c in range(COLS):
-            s = singles_of(c, r)
-            if s:
-                out.alpha_composite(load(gw.half_name(s), scale),
                                     ((c + 1) * N * scale, (r + 1) * N * scale))
     unresolved = []
     for y in range(ROWS + 1):
@@ -244,15 +217,15 @@ def scene():
                 out.alpha_composite(load(name, scale),
                                     ((c + 1) * N * scale, (r + 1) * N * scale))
     out.save(os.path.join(TILES_DIR, f"scene{SUFFIX}.png"))
-    print(f"scene{SUFFIX}.png {out.width}x{out.height} double-nodes="
+    print(f"scene{SUFFIX}.png {out.width}x{out.height} walled-nodes="
           f"{sum(1 for y in range(ROWS + 1) for x in range(COLS + 1) if arms_at(x, y))}"
-          f" single-cells={singles}")
+          f" declared-edges={len(H) + len(V)}")
     if unresolved:
         print(f"UNRESOLVED nodes (no piece carries these arms): {unresolved}")
 
 
 def junctions():
-    """A proof sheet: every double-sided orientation assembled from real pieces.
+    """A proof sheet: every wall orientation assembled from real pieces.
 
     Each patch puts one arm-set on a centre node and runs every arm one segment
     outward, so the neighbour node has exactly one arm and resolves to an end
