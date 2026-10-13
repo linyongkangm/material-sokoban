@@ -268,7 +268,7 @@
   "sofa": {
    "aseprite": "sofa.aseprite",
    "cells": [
-    3.0,
+    2.0,
     1.0
    ],
    "colours": 3,
@@ -276,7 +276,7 @@
    "layer_means": "furniture, placed on the floor",
    "png": "sofa_1x.png",
    "px": [
-    96,
+    64,
     32
    ]
   },

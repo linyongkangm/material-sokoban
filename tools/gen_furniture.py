@@ -196,16 +196,17 @@ def dresser():
 
 # --------------------------------------------------------- living room
 def sofa():
-    p = Piece(96, 32)
-    p.rect(2, 2, 93, 29, CLOTH)
-    p.rect(2, 2, 93, 9, CLOTH_HI)                 # backrest
+    """A two-seater: 64x32 = two cells. It was 96x32 (three cells) until the user
+    asked for two, which is why the seam count is one and not two."""
+    p = Piece(64, 32)
+    p.rect(2, 2, 61, 29, CLOTH)
+    p.rect(2, 2, 61, 9, CLOTH_HI)                 # backrest
     p.rect(2, 2, 11, 29, CLOTH)                   # arms
-    p.rect(84, 2, 93, 29, CLOTH)
+    p.rect(52, 2, 61, 29, CLOTH)
     p.frame(2, 2, 11, 29, INK)
-    p.frame(84, 2, 93, 29, INK)
-    for x in (38, 60):
-        p.rect(x, 11, x + 1, 28, INK)             # cushion seams
-    p.rect(13, 11, 83, 12, CLOTH_HI)
+    p.frame(52, 2, 61, 29, INK)
+    p.rect(30, 11, 31, 28, INK)                   # the seam between the two seats
+    p.rect(13, 11, 50, 12, CLOTH_HI)
     p.ink()
     return p
 

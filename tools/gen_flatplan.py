@@ -174,7 +174,7 @@ FURNITURE = [
     ("dining_table", 4, 5), ("chair", 3, 5), ("chair", 6, 5),
     ("chair", 3, 6), ("chair", 6, 6),
     ("shelf_unit", 3, 8), ("plant", 0, 8),          # plant moved off the 阳台 door
-    ("cushion", 0.5, 4.25), ("cushion", 2.0, 4.25),
+    ("cushion", 0.5, 4.25), ("cushion", 1.25, 4.25),
     ("books", 1.5, 5.25), ("vase", 4.75, 5.75), ("bowl", 0.25, 7.25),
     # 厨房 (7..10, 4..6)
     ("stove", 7, 4), ("sink", 8, 4), ("fridge", 10, 4), ("shelf_unit", 7, 6),
